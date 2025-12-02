@@ -1,25 +1,30 @@
-# database.py
+import pymysql
+from werkzeug.security import generate_password_hash
 
-import mysql.connector
+# Nenhuma mágica de sys.modules ou importação dupla. Apenas PyMySQL.
 
 # --- CONFIGURAÇÕES DE CONEXÃO ---
-# Mude estas variáveis para as suas credenciais do MySQL
+# ATENÇÃO: Substitua 'SUA_SENHA_AQUI_123' pela senha REAL do usuário.
 DB_CONFIG = {
     "host": "localhost",
-    "user": "root",
-    "password": "root",
+    "user": "flask_user",  
+    "password": "SUA_SENHA_AQUI_123", 
     "database": "prontuario_hospitalar"
 }
 
 def create_db_connection():
-    """Tenta estabelecer a conexão com o banco de dados."""
+    """Tenta estabelecer e retornar uma conexão com o banco de dados."""
     try:
-        # Tenta conectar usando as configurações completas
-        conn = mysql.connector.connect(**DB_CONFIG)
+        # **AQUI USAMOS PYMYSQL DIRETAMENTE**
+        conn = pymysql.connect(**DB_CONFIG)
         return conn
-    except mysql.connector.Error as err:
-        print(f"Erro ao conectar ao MySQL: {err}")
+    # Usamos a exceção MySQLError nativa do PyMySQL
+    except pymysql.err.MySQLError as err:
+        print(f"❌ Erro ao conectar ao MySQL: {err}")
         print("Verifique se o MySQL Server está rodando e se as credenciais (host, user, password) estão corretas.")
+        return None
+    except Exception as e:
+        print(f"❌ Erro inesperado ao conectar: {e}")
         return None
 
 def setup_database():
@@ -30,7 +35,8 @@ def setup_database():
     db_name = temp_config.pop("database")
     
     try:
-        conn = mysql.connector.connect(**temp_config)
+        # **AQUI USAMOS PYMYSQL DIRETAMENTE**
+        conn = pymysql.connect(**temp_config)
         cursor = conn.cursor()
         
         # Cria o banco de dados
@@ -38,8 +44,9 @@ def setup_database():
         cursor.close()
         conn.close()
         print(f"✅ Banco de dados '{db_name}' verificado/criado.")
-    except mysql.connector.Error as err:
-        print(f"❌ Erro na criação do DB: {err}")
+    # Usamos a exceção MySQLError nativa do PyMySQL
+    except pymysql.err.MySQLError as err:
+        print(f"❌ Erro na criação do DB ou conexão inicial: {err}")
         return
 
     # 2. Conecta-se ao DB criado para criar as tabelas
@@ -59,7 +66,7 @@ def setup_database():
     CREATE TABLE IF NOT EXISTS Usuarios (
         id INT AUTO_INCREMENT PRIMARY KEY,
         usuario VARCHAR(50) NOT NULL UNIQUE,
-        senha VARCHAR(255) NOT NULL, -- Armazenar a senha como hash é crucial!
+        senha VARCHAR(255) NOT NULL,
         nivel_acesso ENUM('admin', 'tecnico', 'enfermeiro') NOT NULL
     )
     """)
@@ -126,16 +133,17 @@ def setup_database():
     """)
     print("  - Tabela 'AdministracaoMedicamentos' criada/verificada.")
     
-    # 3. Insere o Administrador Inicial
+    # 3. Insere o Administrador Inicial (COM HASH DE SENHA)
     ADMIN_USER = 'admin'
     ADMIN_PASS_PLAINTEXT = '123456789'
     
     # Verifica se o administrador já existe
     cursor.execute("SELECT id FROM Usuarios WHERE usuario = %s", (ADMIN_USER,))
     if not cursor.fetchone():
-        # AQUI VOCÊ DEVERIA USAR hash(ADMIN_PASS_PLAINTEXT)
+        hashed_password = generate_password_hash(ADMIN_PASS_PLAINTEXT)
+        
         sql = "INSERT INTO Usuarios (usuario, senha, nivel_acesso) VALUES (%s, %s, %s)"
-        cursor.execute(sql, (ADMIN_USER, ADMIN_PASS_PLAINTEXT, 'admin'))
+        cursor.execute(sql, (ADMIN_USER, hashed_password, 'admin'))
         conn.commit()
         print(f"\n✅ Usuário administrador '{ADMIN_USER}' criado com sucesso (Senha: {ADMIN_PASS_PLAINTEXT}).")
     else:
