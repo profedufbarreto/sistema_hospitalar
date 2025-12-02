@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Arquivo | Histórico de Altas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .arquivo-container { max-width: 1200px; margin: 30px auto; padding: 20px; }
+        .arquivo-container table { width: 100%; margin-top: 20px; }
+        .arquivo-container h3 { color: #5a6268; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+        .btn-detalhes { background-color: #17a2b8; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn-detalhes:hover { background-color: #138496; }
+        .mensagem-sucesso { background-color: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <h2>Módulo Arquivo</h2>
+        <nav>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('prontuario') }}">Prontuário</a>
+            <a href="{{ url_for('estoque') }}">Estoque</a>
+            <a href="{{ url_for('conversor') }}">Conversor</a>
+            <a href="#" class="active">Arquivo</a>
+            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+        </nav>
+    </header>
+
+    <main class="arquivo-container">
+        {% if mensagem %}
+            <div class="mensagem-sucesso">{{ mensagem }}</div>
+        {% endif %}
+        
+        <h3>Pacientes com Alta Registrada</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome do Paciente</th>
+                    <th>Entrada</th>
+                    <th>Alta</th>
+                    <th>Motivo/Procedimento</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for paciente in pacientes %}
+                <tr>
+                    <td>{{ paciente.id }}</td>
+                    <td>{{ paciente.nome }}</td>
+                    <td>{{ paciente.data_entrada.strftime('%d/%m/%Y') }}</td>
+                    <td>{{ paciente.data_baixa.strftime('%d/%m/%Y') }}</td>
+                    <td>{{ paciente.procedimento | truncate(50) }}</td>
+                    <td>
+                        <a href="{{ url_for('detalhes_prontuario', paciente_id=paciente.id) }}" class="btn-detalhes">Ver Detalhes</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6">Nenhum paciente encontrado no arquivo de altas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </main>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerenciamento de Usuários</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .usuarios-container { max-width: 1000px; margin: 30px auto; padding: 20px; }
+        .usuarios-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .usuarios-header h3 { color: #5a6268; }
+        .form-adicionar { background: #f8f9fa; padding: 20px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 30px; }
+        .form-adicionar input, .form-adicionar select { padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        .form-adicionar button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        .form-adicionar button:hover { background-color: #0056b3; }
+        
+        table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #007bff; color: white; }
+        .nivel-admin { color: #dc3545; font-weight: bold; }
+        .nivel-tecnico { color: #ffc107; font-weight: bold; }
+        .nivel-enfermeiro { color: #28a745; }
+        .btn-excluir { background-color: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <h2>Gerenciamento de Usuários</h2>
+        <nav>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="#" class="active">Usuários</a>
+            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+        </nav>
+    </header>
+
+    <main class="usuarios-container">
+        {% if niveis_permitidos %}
+        <div class="form-adicionar">
+            <h4>Adicionar Novo Usuário</h4>
+            <form action="{{ url_for('adicionar_usuario') }}" method="POST" style="display: flex; align-items: center; gap: 10px;">
+                <input type="text" name="novo_usuario" placeholder="Nome de Usuário" required>
+                <input type="password" name="nova_senha" placeholder="Senha Temporária" required>
+                <select name="nivel_acesso" required>
+                    <option value="">Nível de Acesso</option>
+                    {% for nivel in niveis_permitidos %}
+                    <option value="{{ nivel }}">{{ nivel | upper }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit">Adicionar</button>
+            </form>
+            {% if nivel_logado == 'admin' %}
+                <p style="margin-top: 10px; font-size: 0.9em;">* Limite de 5 Técnicos. Você pode adicionar Técnicos e Enfermeiros.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <h3>Lista de Usuários no Sistema (Seu Nível: {{ nivel_logado | upper }})</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Usuário</th>
+                    <th>Nível de Acesso</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in usuarios %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.usuario }}</td>
+                    <td>
+                        <span class="nivel-{{ user.nivel_acesso }}">{{ user.nivel_acesso | upper }}</span>
+                    </td>
+                    <td>
+                        {% set pode_excluir = false %}
+                        {# Admin pode excluir Técnico ou Enfermeiro #}
+                        {% if nivel_logado == 'admin' and user.nivel_acesso != 'admin' %}
+                            {% set pode_excluir = true %}
+                        {# Técnico pode excluir Enfermeiro #}
+                        {% elif nivel_logado == 'tecnico' and user.nivel_acesso == 'enfermeiro' %}
+                            {% set pode_excluir = true %}
+                        {% endif %}
+
+                        {% if pode_excluir %}
+                        <form action="{{ url_for('excluir_usuario', user_id=user.id) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn-excluir" onclick="return confirm('Tem certeza que deseja excluir {{ user.usuario }} ({{ user.nivel_acesso | upper }})?')">Excluir</button>
+                        </form>
+                        {% else %}
+                        (Sem Permissão)
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </main>
+</body>
+</html>

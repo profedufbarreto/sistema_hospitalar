@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prontuário Hospitalar | Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <h1>🏥 Sistema de Prontuário</h1>
+        <form method="POST" action="/login">
+            <div class="form-group">
+                <label for="usuario">Usuário:</label>
+                <input type="text" id="usuario" name="usuario" required>
+            </div>
+            <div class="form-group">
+                <label for="senha">Senha:</label>
+                <input type="password" id="senha" name="senha" required>
+            </div>
+            
+            {% if erro %}
+                <p class="error-message">{{ erro }}</p>
+            {% endif %}
+            
+            <button type="submit" class="btn-login">Entrar</button>
+        </form>
+    </div>
+</body>
+</html>

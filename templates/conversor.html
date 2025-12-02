@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Módulo Conversor | PEP</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        /* Estilos específicos do conversor */
+        .conversor-container { max-width: 600px; margin: 30px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); text-align: center; }
+        .conversor-container h3 { color: #007bff; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 30px; }
+        .conversor-group { margin-bottom: 25px; padding: 15px; border: 1px dashed #ccc; border-radius: 6px; }
+        .conversor-group label { font-weight: bold; margin-bottom: 8px; display: block; color: #333; }
+        .conversor-group input { width: 80%; padding: 12px; font-size: 1.2em; text-align: center; border: 2px solid #ddd; border-radius: 4px; transition: border-color 0.3s; }
+        .conversor-group input:focus { border-color: #007bff; outline: none; }
+        .resultado { margin-top: 20px; padding: 15px; background-color: #e9f7ef; border: 1px solid #28a745; border-radius: 4px; font-size: 1.1em; font-weight: bold; color: #28a745; }
+        .observacao { font-size: 0.9em; color: #6c757d; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <h2>Módulo Conversor</h2>
+        <nav>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('prontuario') }}">Prontuário</a>
+            <a href="#">Estoque</a>
+            <a href="#" class="active">Conversor</a>
+            <a href="#">Arquivo</a>
+            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+        </nav>
+    </header>
+
+    <main class="conversor-container">
+        <h3>Calculadora de Conversão: mL ⇌ Gotas</h3>
+        <p class="observacao">
+            * **Fator Padrão:** O sistema utiliza o padrão de **20 gotas por mililitro (mL)**. 
+            Atenção: Este fator pode variar com a densidade do líquido (ex: soluções mais viscosas).
+        </p>
+
+        <div class="conversor-group">
+            <label for="ml_input">Converter Mililitros (mL) para Gotas</label>
+            <input type="number" id="ml_input" placeholder="Digite o valor em mL">
+            <div class="resultado" id="resultado_gotas">0 Gotas</div>
+        </div>
+
+        <div class="conversor-group">
+            <label for="gotas_input">Converter Gotas para Mililitros (mL)</label>
+            <input type="number" id="gotas_input" placeholder="Digite o valor em Gotas">
+            <div class="resultado" id="resultado_ml">0 mL</div>
+        </div>
+        
+    </main>
+
+    <script src="{{ url_for('static', filename='js/conversions.js') }}"></script>
+</body>
+</html>

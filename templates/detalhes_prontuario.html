@@ -1,0 +1,66 @@
+<head>
+    <meta charset="UTF-8">
+    <title>Detalhes do Prontuário | {{ paciente.nome }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .detalhes-container { max-width: 900px; margin: 30px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .section-header { margin-top: 30px; padding-bottom: 5px; border-bottom: 2px solid #007bff; color: #007bff; }
+        .data-item { margin-bottom: 10px; }
+        .data-item strong { display: inline-block; width: 150px; color: #333; }
+        
+        .prova-vida-list { margin-top: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 6px; }
+        .prova-vida-item { border-bottom: 1px dashed #eee; padding: 10px 0; }
+        .prova-vida-item:last-child { border-bottom: none; }
+        .pv-data { display: flex; flex-wrap: wrap; gap: 15px; font-size: 0.9em; }
+        .pv-data span { flex: 1 1 45%; }
+        .pv-obs { margin-top: 5px; font-style: italic; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <h2>Prontuário Arquivado: {{ paciente.nome }}</h2>
+        <nav>
+            <a href="{{ url_for('arquivo') }}" class="btn-logout" style="background-color: #6c757d;">Voltar ao Arquivo</a>
+        </nav>
+    </header>
+
+    <main class="detalhes-container">
+        <h3 class="section-header">Dados do Paciente e Internação</h3>
+        <div class="data-item"><strong>Nome:</strong> {{ paciente.nome }}</div>
+        <div class="data-item"><strong>Nascimento:</strong> {{ paciente.data_nascimento.strftime('%d/%m/%Y') }}</div>
+        <div class="data-item"><strong>Entrada:</strong> {{ paciente.data_entrada.strftime('%d/%m/%Y %H:%M') }}</div>
+        <div class="data-item"><strong>Alta (Baixa):</strong> {{ paciente.data_baixa.strftime('%d/%m/%Y') if paciente.data_baixa else 'PENDENTE' }}</div>
+        <div class="data-item"><strong>Profissional de Baixa:</strong> {{ paciente.nome_baixa }}</div>
+        <div class="data-item"><strong>Endereço:</strong> {{ paciente.endereco }}, {{ paciente.bairro }} (CEP: {{ paciente.cep }})</div>
+        <div class="data-item"><strong>Procedimento/Motivo:</strong> {{ paciente.procedimento }}</div>
+
+        <h3 class="section-header" style="border-bottom-color: #28a745;">Histórico de Provas de Vida ({{ provas_vida | length }} Registros)</h3>
+        
+        {% if provas_vida %}
+        <div class="prova-vida-list">
+            {% for pv in provas_vida %}
+            <div class="prova-vida-item">
+                <div class="pv-data">
+                    <span>📅 **Data/Hora:** {{ pv.data_hora.strftime('%d/%m/%Y %H:%M') }}</span>
+                    <span>👨‍⚕️ **Efetuado por:** {{ pv.quem_efetuou }}</span>
+                    <span>🩸 **PA:** {{ pv.pressao_arterial }} mmHg</span>
+                    <span>❤️ **FC:** {{ pv.batimentos_cardiacos }} bpm</span>
+                    <span>🦠 **Glicose:** {{ pv.glicose if pv.glicose else 'N/A' }} mg/dL</span>
+                    <span>💨 **Saturação:** {{ pv.saturacao if pv.saturacao else 'N/A' }} %</span>
+                </div>
+                {% if pv.observacoes %}
+                <p class="pv-obs">⚠️ **Obs:** {{ pv.observacoes }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>Nenhuma prova de vida registrada para este paciente.</p>
+        {% endif %}
+
+        <h3 class="section-header" style="border-bottom-color: #ffc107;">Histórico de Administração de Medicamentos</h3>
+        <p>A listagem dos medicamentos administrados precisaria de uma consulta à tabela `AdministracaoMedicamentos`.</p>
+    </main>
+</body>
+</html>

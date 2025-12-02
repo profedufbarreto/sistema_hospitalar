@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Prova de Vida | Sinais Vitais</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        /* Estilos específicos */
+        .pv-container { max-width: 700px; margin: 30px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
+        .pv-container h3 { color: #20b2aa; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 30px; }
+        .form-row { display: flex; gap: 20px; margin-bottom: 15px; }
+        .form-row > .form-group { flex: 1; }
+        .form-group label { font-weight: bold; margin-bottom: 5px; display: block; color: #333; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .input-with-unit { display: flex; align-items: center; }
+        .input-with-unit input { flex: 1; margin-right: 5px; }
+        .input-with-unit span { font-weight: bold; color: #666; width: 40px; text-align: left; }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <h2>Módulo Prova de Vida</h2>
+        <nav>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('prontuario') }}">Prontuário</a>
+            <a href="{{ url_for('estoque') }}">Estoque</a>
+            <a href="{{ url_for('conversor') }}">Conversor</a>
+            <a href="#" class="active">Prova de Vida</a>
+            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+        </nav>
+    </header>
+
+    <main class="pv-container">
+        <form action="{{ url_for('salvar_prova_vida') }}" method="POST">
+            <h3>Registro de Sinais Vitais</h3>
+
+            <div class="form-group">
+                <label for="paciente_id">Paciente Internado:</label>
+                <select id="paciente_id" name="paciente_id" required>
+                    <option value="">-- Selecione o Paciente --</option>
+                    {% for paciente in pacientes %}
+                    <option value="{{ paciente.id }}">{{ paciente.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="data_hora">Data e Hora da Medição:</label>
+                    <input type="datetime-local" id="data_hora" name="data_hora" required value="{{ moment().format('YYYY-MM-DDTHH:mm') }}">
+                </div>
+                <div class="form-group">
+                    <label for="quem_efetuou">Quem Efetuou a Medição:</label>
+                    <input type="text" id="quem_efetuou" name="quem_efetuou" required readonly value="{{ usuario_logado }}">
+                </div>
+            </div>
+
+            <hr style="margin: 25px 0; border-color: #eee;">
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="pressao_arterial">Pressão Arterial (PA):</label>
+                    <div class="input-with-unit">
+                        <input type="text" id="pressao_arterial" name="pressao_arterial" placeholder="Ex: 120/80">
+                        <span>mmHg</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="batimentos_cardiacos">Batimentos Cardíacos (FC):</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="batimentos_cardiacos" name="batimentos_cardiacos" min="0" placeholder="75">
+                        <span>bpm</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="glicose">Glicose:</label>
+                    <div class="input-with-unit">
+                        <input type="number" step="0.1" id="glicose" name="glicose" min="0" placeholder="95">
+                        <span>mg/dL</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="saturacao">Saturação (SpO2):</label>
+                    <div class="input-with-unit">
+                        <input type="number" step="0.1" id="saturacao" name="saturacao" min="0" max="100" placeholder="98">
+                        <span>%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label for="observacoes">Observações (Estado Geral, Dor, etc.):</label>
+                <textarea id="observacoes" name="observacoes" rows="3"></textarea>
+            </div>
+
+            <button type="submit" class="btn-login" style="margin-top: 20px; background-color: #20b2aa;">Registrar Prova de Vida</button>
+        </form>
+    </main>
+
+    <script>
+        // O Flask/Jinja2 não executa "moment()", então usaremos JS puro para preencher a data/hora
+        document.addEventListener('DOMContentLoaded', function() {
+            var now = new Date();
+            // Formato YYYY-MM-DDTHH:mm
+            var localDatetime = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().substring(0, 16);
+            document.getElementById('data_hora').value = localDatetime;
+        });
+    </script>
+</body>
+</html>

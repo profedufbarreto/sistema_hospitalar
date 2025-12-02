@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard | PEP</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header class="main-header">
+        <h2>Bem-vindo(a), {{ usuario }} ({{ nivel | upper }})</h2>
+        <nav>
+            <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
+            <a href="{{ url_for('prontuario') }}">Prontuário</a>
+            <a href="{{ url_for('estoque') }}">Estoque</a>
+            <a href="{{ url_for('conversor') }}">Conversor</a>
+            <a href="{{ url_for('prova_vida') }}">Prova de Vida</a> 
+            <a href="{{ url_for('arquivo') }}">Arquivo</a>
+            
+            {% if nivel in ['admin', 'tecnico'] %}
+                <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
+            {% endif %}
+            
+            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+        </nav>
+    </header>
+
+    <main class="dashboard-content">
+        {% if mensagem %}
+            <div class="alert alert-success">{{ mensagem }}</div>
+        {% endif %}
+        
+        <h3>Visão Geral Estatística</h3>
+        
+        <section class="kpi-cards">
+            <div class="card card-internados">
+                <h4>Internados Atuais</h4>
+                <p class="kpi-value" id="total-internados">{{ dados.total_internados }}</p> 
+            </div>
+            
+            <div class="card card-altas">
+                <h4>Altas (Últimos 7 dias)</h4>
+                <p class="kpi-value" id="altas-mes">{{ dados.altas_ultimos_7_dias }}</p>
+            </div>
+            
+            <div class="card card-estoque">
+                <h4>Medicamentos Críticos</h4>
+                <p class="kpi-value" id="estoque-critico">{{ dados.baixo_estoque }}</p>
+            </div>
+
+            <div class="card card-provas-vida">
+                <h4>Provas de Vida (24h)</h4>
+                <p class="kpi-value">{{ dados.provas_vida_ultimas_24h }}</p>
+            </div>
+        </section>
+
+        <section class="charts-section">
+            <div class="chart-container">
+                <h4>Motivos de Internação (Top 5)</h4>
+                <canvas id="motivosChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h4>Dias Médios de Internação</h4>
+                <canvas id="diasChart"></canvas>
+            </div>
+        </section>
+        
+    </main>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
