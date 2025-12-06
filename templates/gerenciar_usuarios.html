@@ -4,12 +4,16 @@
     <meta charset="UTF-8">
     <title>Gerenciamento de Usuários</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    </head>
+</head>
 <body>
     <header class="main-header">
         <h2>Gerenciamento de Usuários</h2>
         <nav>
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('prontuario') }}">Prontuário</a>
+            <a href="{{ url_for('pacientes') }}">Pacientes</a> <a href="{{ url_for('estoque') }}">Estoque</a>
+            <a href="{{ url_for('conversor') }}">Conversor</a>
+            <a href="{{ url_for('arquivo') }}">Arquivo</a>
             <a href="{{ url_for('gerenciar_usuarios') }}" class="active">Usuários</a>
             <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>

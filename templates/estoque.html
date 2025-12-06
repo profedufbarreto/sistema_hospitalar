@@ -4,16 +4,22 @@
     <meta charset="UTF-8">
     <title>Módulo Estoque | PEP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    </head>
+</head>
 <body>
     <header class="main-header">
         <h2>Módulo Estoque</h2>
         <nav>
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
             <a href="{{ url_for('prontuario') }}">Prontuário</a>
-            <a href="#" class="active">Estoque</a>
+            <a href="{{ url_for('pacientes') }}">Pacientes</a> 
+            <a href="{{ url_for('estoque') }}" class="active">Estoque</a>
             <a href="{{ url_for('conversor') }}">Conversor</a>
-            <a href="#">Arquivo</a>
+            <a href="{{ url_for('arquivo') }}">Arquivo</a> 
+            
+            {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
+            {% endif %}
+            
             <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>
     </header>

@@ -9,7 +9,13 @@
 <body class="login-body">
     <div class="login-container">
         <h1>🏥 Sistema de Prontuário</h1>
-        <form method="POST" action="/login">
+        
+        <form method="POST" action="{{ url_for('login') }}">
+            
+            {% if erro %}
+                <p class="error-message">{{ erro }}</p>
+            {% endif %}
+            
             <div class="form-group">
                 <label for="usuario">Usuário:</label>
                 <input type="text" id="usuario" name="usuario" required>
@@ -18,10 +24,6 @@
                 <label for="senha">Senha:</label>
                 <input type="password" id="senha" name="senha" required>
             </div>
-            
-            {% if erro %}
-                <p class="error-message">{{ erro }}</p>
-            {% endif %}
             
             <button type="submit" class="btn-login">Entrar</button>
         </form>

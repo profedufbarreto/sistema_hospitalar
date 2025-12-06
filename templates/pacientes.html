@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Pacientes Internados</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="main-header">
+        <h2>Módulo Prontuário</h2>
+        <nav>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('prontuario') }}">Prontuário</a> 
+            <a href="{{ url_for('pacientes') }}" class="active">Pacientes</a>
+            <a href="{{ url_for('estoque') }}">Estoque</a> 
+            <a href="{{ url_for('conversor') }}">Conversor</a> 
+            <a href="{{ url_for('arquivo') }}">Arquivo</a> 
+            {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+        </nav>
+    </header>
+
+    <main class="pacientes-container">
+        <h3>Lista de Pacientes Internados</h3>
+        
+        <div class="search-bar">
+            <label for="search-input">Pesquisar por Nome:</label>
+            <input type="text" id="search-input" placeholder="Digite o nome do paciente..." onkeyup="filterTable()">
+        </div>
+        
+        <table id="pacientes-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome do Paciente</th>
+                    <th>Data de Nascimento</th>
+                    <th>Entrada</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for paciente in pacientes %}
+                <tr data-nome="{{ paciente.nome_paciente | lower }}">
+                    <td>{{ paciente.id }}</td>
+                    <td>{{ paciente.nome_paciente }}</td>
+                    <td>{{ paciente.data_nascimento }}</td>
+                    <td>{{ paciente.hora_entrada }}</td>
+                    <td>
+                        <a href="{{ url_for('prova_vida', paciente_id=paciente.id) }}" class="btn-action-pequeno btn-add-pv">
+                            ➕ Prova de Vida
+                        </a>
+                        <a href="{{ url_for('paciente_detalhes', paciente_id=paciente.id) }}" class="btn-action-pequeno btn-detalhes">
+                            Detalhes
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </main>
+    
+    <script src="{{ url_for('static', filename='js/filter.js') }}"></script>
+</body>
+</html>

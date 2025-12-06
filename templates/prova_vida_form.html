@@ -8,39 +8,43 @@
 <body>
     <header class="main-header">
         <h2>Módulo Prova de Vida</h2>
+        
         <nav>
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
             <a href="{{ url_for('prontuario') }}">Prontuário</a>
+            <a href="{{ url_for('pacientes') }}" class="active">Pacientes</a> 
             <a href="{{ url_for('estoque') }}">Estoque</a>
             <a href="{{ url_for('conversor') }}">Conversor</a>
-            <a href="#" class="active">Prova de Vida</a>
+            <a href="{{ url_for('arquivo') }}">Arquivo</a>
+            {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
+            {% endif %}
             <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>
+        
     </header>
 
     <main class="pv-container">
-        <form action="{{ url_for('salvar_prova_vida') }}" method="POST">
-            <h3>Registro de Sinais Vitais</h3>
-
-            <div class="form-group">
-                <label for="paciente_id">Paciente Internado:</label>
-                <select id="paciente_id" name="paciente_id" required>
-                    <option value="">-- Selecione o Paciente --</option>
-                    {% for paciente in pacientes %}
-                    <option value="{{ paciente.id }}">{{ paciente.nome }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+        <form action="{{ url_for('prova_vida', paciente_id=paciente.id) }}" method="POST"> 
             
+            <input type="hidden" name="paciente_id" value="{{ paciente.id }}">
+            
+            <h3>Registro de Sinais Vitais para **{{ paciente.nome }}**</h3>
+            <p class="nota-paciente">ID do Paciente: **{{ paciente.id }}**</p>
+
             <div class="form-row">
                 <div class="form-group">
-                    <label for="data_hora">Data e Hora da Medição:</label>
-                    <input type="datetime-local" id="data_hora" name="data_hora" required>
+                    <label for="data_pv">Data da Prova de Vida:</label>
+                    <input type="date" id="data_pv" name="data_pv" value="{{ agora.split('T')[0] }}" required>
                 </div>
                 <div class="form-group">
-                    <label for="quem_efetuou">Quem Efetuou a Medição:</label>
-                    <input type="text" id="quem_efetuou" name="quem_efetuou" required readonly value="{{ usuario_logado }}">
+                    <label for="hora_pv">Hora da Prova de Vida:</label>
+                    <input type="time" id="hora_pv" name="hora_pv" value="{{ agora.split('T')[1] }}" required>
                 </div>
+            </div>
+            <div class="form-group">
+                <label for="quem_efetuou">Quem Efetuou a Medição:</label>
+                <input type="text" id="quem_efetuou" name="quem_efetuou" required readonly value="{{ usuario_logado }}">
             </div>
 
             <hr style="margin: 25px 0; border-color: #eee;">
@@ -49,7 +53,7 @@
                 <div class="form-group">
                     <label for="pressao_arterial">Pressão Arterial (PA):</label>
                     <div class="input-with-unit">
-                        <input type="text" id="pressao_arterial" name="pressao_arterial" placeholder="Ex: 120/80">
+                        <input type="text" id="pressao_arterial" name="pressao_arterial" placeholder="Ex: 120/80" required>
                         <span>mmHg</span>
                     </div>
                 </div>
@@ -90,6 +94,5 @@
         </form>
     </main>
 
-    <script src="{{ url_for('static', filename='js/prova_vida.js') }}"></script>
-</body>
+    </body>
 </html>

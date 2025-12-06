@@ -8,6 +8,22 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import pymysql.cursors 
 from pymysql import IntegrityError # Importa para tratar erro de usuário duplicado
 
+# Função auxiliar para criar a conexão, usando DictCursor por padrão para facilitar
+# Assumimos que create_db_connection (em database.py) aceita o argumento cursor_factory
+def get_db_connection(cursor_factory=pymysql.cursors.DictCursor):
+    return create_db_connection(cursor_factory)
+
+# Decorator para exigir login
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'usuario' not in session:
+            flash("Você precisa estar logado para acessar esta página.", 'warning')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 app = Flask(__name__)
 # Chave secreta é OBRIGATÓRIA para usar sessões
 app.secret_key = 'root'
@@ -28,11 +44,12 @@ def login():
         usuario = request.form['usuario']
         senha = request.form['senha']
         
-        conn = create_db_connection()
+        # CORRIGIDO: Usando get_db_connection() para garantir DictCursor
+        conn = get_db_connection()
         if conn is None:
             return render_template('login.html', erro='Erro de conexão com o banco de dados.')
             
-        cursor = conn.cursor(pymysql.cursors.DictCursor) 
+        cursor = conn.cursor() 
         
         # 1. BUSCA O USUÁRIO PELO NOME
         sql = "SELECT * FROM Usuarios WHERE usuario = %s"
@@ -63,11 +80,9 @@ def logout():
 # ==============================================================================
 
 @app.route('/dashboard')
+@login_required # Garante que só usuários logados acessem
 def dashboard():
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-        
-    conn = create_db_connection()
+    conn = get_db_connection()
     dados_dashboard = {
         'total_internados': 0,
         'altas_ultimos_7_dias': 0,
@@ -76,24 +91,26 @@ def dashboard():
     }
     
     if conn:
+        # Usa o cursor padrão (DictCursor) da get_db_connection
         cursor = conn.cursor() 
         
         try:
             # 1. TOTAL DE PACIENTES INTERNADOS
             cursor.execute("SELECT COUNT(*) FROM Pacientes WHERE status = 'internado'")
-            dados_dashboard['total_internados'] = cursor.fetchone()[0]
+            # fetchone() retorna um dicionário com DictCursor, precisamos do valor
+            dados_dashboard['total_internados'] = list(cursor.fetchone().values())[0] 
             
             # 2. ALTAS NOS ÚLTIMOS 7 DIAS
             cursor.execute("SELECT COUNT(*) FROM Pacientes WHERE status = 'alta' AND data_baixa >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")
-            dados_dashboard['altas_ultimos_7_dias'] = cursor.fetchone()[0]
+            dados_dashboard['altas_ultimos_7_dias'] = list(cursor.fetchone().values())[0]
             
             # 3. ITENS COM BAIXO ESTOQUE (Exemplo: quantidade < 10)
             cursor.execute("SELECT COUNT(*) FROM Estoque WHERE quantidade < 10")
-            dados_dashboard['baixo_estoque'] = cursor.fetchone()[0]
+            dados_dashboard['baixo_estoque'] = list(cursor.fetchone().values())[0]
 
             # 4. PROVAS DE VIDA REGISTRADAS NAS ÚLTIMAS 24H
             cursor.execute("SELECT COUNT(*) FROM ProvasDeVida WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)")
-            dados_dashboard['provas_vida_ultimas_24h'] = cursor.fetchone()[0]
+            dados_dashboard['provas_vida_ultimas_24h'] = list(cursor.fetchone().values())[0]
             
         except Exception as e:
             print(f"Erro CRÍTICO ao buscar dados do dashboard: {e}")
@@ -110,18 +127,17 @@ def dashboard():
     )
 
 # ==============================================================================
-# 📝 MÓDULO PRONTUÁRIO
+# 📝 MÓDULO PRONTUÁRIO (NOVA INTERNAÇÃO)
 # ==============================================================================
 
 @app.route('/prontuario')
+@login_required
 def prontuario():
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-        
-    conn = create_db_connection()
+    conn = get_db_connection()
     medicamentos = []
     if conn:
-        cursor = conn.cursor(pymysql.cursors.DictCursor) 
+        # get_db_connection já retorna DictCursor
+        cursor = conn.cursor() 
         cursor.execute("SELECT nome_medicamento FROM Estoque WHERE quantidade > 0 ORDER BY nome_medicamento")
         medicamentos = cursor.fetchall()
         cursor.close()
@@ -134,12 +150,11 @@ def prontuario():
     )
 
 @app.route('/prontuario/salvar', methods=['POST'])
+@login_required
 def salvar_prontuario():
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-        
     dados = request.form
-    conn = create_db_connection()
+    # CORRIGIDO: Usando get_db_connection() para inserção (cursor padrão)
+    conn = get_db_connection(pymysql.cursors.Cursor) 
     if conn is None:
         return "Erro de conexão com o banco de dados.", 500
         
@@ -224,21 +239,186 @@ def salvar_prontuario():
         conn.close()
 
 # ==============================================================================
+# 👥 MÓDULO PACIENTES (LISTA DE INTERNADOS)
+# ==============================================================================
+
+@app.route('/pacientes')
+@login_required
+def pacientes():
+    conn = get_db_connection() # Usando get_db_connection
+    pacientes_internados = []
+    if conn:
+        try:
+            # Consulta pacientes internados
+            sql = "SELECT id, nome, data_nascimento, data_entrada FROM Pacientes WHERE status = 'internado' ORDER BY nome"
+            # get_db_connection já retorna DictCursor
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            pacientes_internados = cursor.fetchall()
+            cursor.close()
+        except Exception as e:
+            print(f"Erro ao buscar pacientes: {e}")
+        finally:
+            conn.close()
+            
+    # Renderiza a nova página
+    return render_template('pacientes.html', pacientes=pacientes_internados)
+
+# ------------------------------------------------------------------------------
+# 📑 ROTA DE DETALHES UNIFICADA (PACIENTE_DETALHES)
+# ------------------------------------------------------------------------------
+
+@app.route('/paciente/detalhes/<int:paciente_id>')
+@login_required
+def paciente_detalhes(paciente_id):
+    conn = get_db_connection() # Usando get_db_connection (DictCursor)
+    paciente = None
+    provas_vida = []
+    medicamentos_admin = []
+    
+    if conn:
+        cursor = conn.cursor() # DictCursor
+        
+        try:
+            # 1. Buscar Dados Detalhados do Paciente (Prontuário)
+            cursor.execute("SELECT * FROM Pacientes WHERE id = %s", (paciente_id,))
+            paciente = cursor.fetchone()
+            
+            # 2. Buscar todas as Provas de Vida
+            cursor.execute("SELECT * FROM ProvasDeVida WHERE paciente_id = %s ORDER BY data_hora DESC", (paciente_id,))
+            provas_vida = cursor.fetchall()
+            
+            # 3. Buscar Histórico de Medicamentos
+            cursor.execute("SELECT * FROM AdministracaoMedicamentos WHERE paciente_id = %s ORDER BY data_hora DESC", (paciente_id,))
+            medicamentos_admin = cursor.fetchall()
+        
+        except Exception as e:
+            print(f"Erro ao buscar detalhes do paciente: {e}")
+        finally:
+            cursor.close()
+            conn.close()
+            
+    if not paciente:
+        flash("Paciente não encontrado.", 'danger')
+        return redirect(url_for('pacientes'))
+        
+    return render_template(
+        'detalhes_prontuario.html', 
+        paciente=paciente, 
+        provas_vida=provas_vida, 
+        medicamentos_admin=medicamentos_admin
+    )
+
+# ==============================================================================
+# ❤️ MÓDULO PROVA DE VIDA
+# ==============================================================================
+
+# Rota de Prova de Vida com parâmetro paciente_id
+@app.route('/prova_vida/<int:paciente_id>', methods=('GET', 'POST'))
+@login_required
+def prova_vida(paciente_id):
+    conn = get_db_connection() # Usando get_db_connection (DictCursor)
+    paciente = None
+    
+    if conn:
+        # 1. Busca o paciente pelo ID
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, nome FROM Pacientes WHERE id = %s", (paciente_id,))
+        paciente = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+    if not paciente:
+        flash(f"Paciente com ID {paciente_id} não encontrado.", 'danger')
+        return redirect(url_for('pacientes')) # Redireciona para a lista se o ID for inválido
+
+    # Caso GET: Exibe o formulário
+    if request.method == 'GET':
+        # Passa a data/hora atual como padrão para os campos (YYYY-MM-DDTHH:MM)
+        agora = datetime.now().strftime('%Y-%m-%dT%H:%M')
+        
+        return render_template(
+            'prova_vida_form.html', 
+            paciente=paciente,
+            agora=agora,
+            usuario_logado=session['usuario']
+        )
+    
+    # Caso POST: Salva a nova prova de vida
+    elif request.method == 'POST':
+        dados = request.form
+        # CORRIGIDO: Usando get_db_connection com cursor padrão para inserção
+        conn = get_db_connection(pymysql.cursors.Cursor) 
+        if conn is None:
+            return "Erro de conexão com o banco de dados.", 500
+            
+        cursor = conn.cursor()
+        
+        try:
+            sql = """
+            INSERT INTO ProvasDeVida 
+            (paciente_id, data_hora, pressao_arterial, glicose, saturacao, batimentos_cardiacos, quem_efetuou, observacoes)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            
+            # Combina Data e Hora do formulário (que agora virão separadamente)
+            data_pv = dados['data_pv'] # YYYY-MM-DD
+            hora_pv = dados['hora_pv'] # HH:MM
+            data_hora_mysql = f"{data_pv} {hora_pv}:00" # Formato MySQL: YYYY-MM-DD HH:MM:SS
+            
+            # Garante que os campos numéricos vazios sejam None (para o MySQL)
+            glicose_val = dados['glicose'] if dados['glicose'] else None
+            saturacao_val = dados['saturacao'] if dados['saturacao'] else None
+            batimentos_val = dados['batimentos_cardiacos'] if dados['batimentos_cardiacos'] else None
+            
+            cursor.execute(sql, (
+                paciente_id, # Usando o ID da URL
+                data_hora_mysql,
+                dados['pressao_arterial'], 
+                glicose_val, 
+                saturacao_val,
+                batimentos_val,
+                dados['quem_efetuou'],
+                dados['observacoes']
+            ))
+            
+            conn.commit()
+            flash('Prova de vida registrada com sucesso!', 'success')
+            return redirect(url_for('paciente_detalhes', paciente_id=paciente_id)) # Volta para os detalhes do paciente
+            
+        except Exception as e:
+            conn.rollback()
+            print(f"Erro ao salvar Prova de Vida: {e}")
+            flash(f"Erro interno ao salvar os dados: {e}", 'danger')
+            return redirect(url_for('prova_vida', paciente_id=paciente_id))
+        finally:
+            cursor.close()
+            conn.close()
+
+# Rota para o módulo de Prova de Vida genérico (MANTIDO, mas deve ser removido ou alterado no futuro)
+@app.route('/prova_vida')
+@login_required
+def prova_vida_antiga():
+    # Esta rota agora redireciona para a nova lista, incentivando o uso do link via Pacientes
+    flash("Selecione um paciente internado para registrar a Prova de Vida.", 'info')
+    return redirect(url_for('pacientes'))
+
+
+# ==============================================================================
 # 🛒 MÓDULO ESTOQUE
 # ==============================================================================
 
 @app.route('/estoque')
+@login_required
 def estoque():
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-        
     if session['nivel'] not in ['admin', 'tecnico']:
-        return "Acesso Negado: Permissão restrita a Admin e Técnico.", 403
+        flash("Acesso Negado: Permissão restrita a Admin e Técnico.", 'danger')
+        return redirect(url_for('dashboard'))
 
-    conn = create_db_connection()
+    conn = get_db_connection() # CORRIGIDO: Usando get_db_connection()
     itens_estoque = []
     if conn:
-        cursor = conn.cursor(pymysql.cursors.DictCursor) 
+        cursor = conn.cursor() # DictCursor
         cursor.execute("SELECT * FROM Estoque ORDER BY nome_medicamento")
         itens_estoque = cursor.fetchall()
         cursor.close()
@@ -247,6 +427,7 @@ def estoque():
     return render_template('estoque.html', itens=itens_estoque, nivel=session['nivel'])
 
 @app.route('/estoque/salvar', methods=['POST'])
+@login_required
 def salvar_estoque():
     if session.get('nivel') not in ['admin', 'tecnico']:
         return "Acesso Negado.", 403
@@ -258,11 +439,13 @@ def salvar_estoque():
     try:
         quantidade = int(dados['quantidade'])
     except ValueError:
-        return "Quantidade deve ser um número inteiro válido.", 400
+        flash("Quantidade deve ser um número inteiro válido.", 'danger')
+        return redirect(url_for('estoque'))
         
     unidade = dados['unidade']
     
-    conn = create_db_connection()
+    # CORRIGIDO: Usando get_db_connection com cursor padrão para inserção
+    conn = get_db_connection(pymysql.cursors.Cursor) 
     if conn is None: return "Erro de conexão.", 500
     cursor = conn.cursor()
     
@@ -277,12 +460,14 @@ def salvar_estoque():
             cursor.execute(sql_insert, (nome, quantidade, unidade))
             
         conn.commit()
+        flash("Estoque atualizado com sucesso.", 'success')
         return redirect(url_for('estoque'))
         
     except Exception as e:
         conn.rollback()
         print(f"Erro ao salvar estoque: {e}")
-        return f"Erro: {e}", 500
+        flash(f"Erro: {e}", 'danger')
+        return redirect(url_for('estoque'))
     finally:
         cursor.close()
         conn.close()
@@ -292,96 +477,22 @@ def salvar_estoque():
 # ==============================================================================
 
 @app.route('/conversor')
+@login_required
 def conversor():
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-        
     return render_template('conversor.html')
 
-# ==============================================================================
-# ❤️ MÓDULO PROVA DE VIDA
-# ==============================================================================
-
-@app.route('/prova_vida')
-def prova_vida():
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-        
-    conn = create_db_connection()
-    pacientes_internados = []
-    if conn:
-        cursor = conn.cursor(pymysql.cursors.DictCursor) 
-        cursor.execute("SELECT id, nome FROM Pacientes WHERE status = 'internado' ORDER BY nome")
-        pacientes_internados = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        
-    return render_template(
-        'prova_vida_form.html', 
-        pacientes=pacientes_internados,
-        usuario_logado=session['usuario']
-    )
-
-@app.route('/prova_vida/salvar', methods=['POST'])
-def salvar_prova_vida():
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-        
-    dados = request.form
-    conn = create_db_connection()
-    if conn is None:
-        return "Erro de conexão com o banco de dados.", 500
-        
-    cursor = conn.cursor()
-    
-    try:
-        sql = """
-        INSERT INTO ProvasDeVida 
-        (paciente_id, data_hora, pressao_arterial, glicose, saturacao, batimentos_cardiacos, quem_efetuou, observacoes)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        data_hora_mysql = dados['data_hora'].replace('T', ' ')
-        
-        # Garante que os campos numéricos vazios sejam None (para o MySQL)
-        glicose_val = dados['glicose'] if dados['glicose'] else None
-        saturacao_val = dados['saturacao'] if dados['saturacao'] else None
-        batimentos_val = dados['batimentos_cardiacos'] if dados['batimentos_cardiacos'] else None
-        
-        cursor.execute(sql, (
-            dados['paciente_id'], 
-            data_hora_mysql,
-            dados['pressao_arterial'], 
-            glicose_val, 
-            saturacao_val,
-            batimentos_val,
-            dados['quem_efetuou'],
-            dados['observacoes']
-        ))
-        
-        conn.commit()
-        return redirect(url_for('dashboard', mensagem='Prova de vida registrada com sucesso!'))
-        
-    except Exception as e:
-        conn.rollback()
-        print(f"Erro ao salvar Prova de Vida: {e}")
-        return f"Erro interno ao salvar os dados: {e}", 500
-    finally:
-        cursor.close()
-        conn.close()
 
 # ==============================================================================
 # 🗄️ MÓDULO ARQUIVO (ALTAS)
 # ==============================================================================
 
 @app.route('/arquivo')
+@login_required
 def arquivo():
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-        
-    conn = create_db_connection()
+    conn = get_db_connection() # CORRIGIDO: Usando get_db_connection()
     pacientes_altas = []
     if conn:
-        cursor = conn.cursor(pymysql.cursors.DictCursor) 
+        cursor = conn.cursor() # DictCursor
         cursor.execute("SELECT id, nome, data_entrada, data_baixa, procedimento FROM Pacientes WHERE status = 'alta' ORDER BY data_baixa DESC")
         pacientes_altas = cursor.fetchall()
         cursor.close()
@@ -390,11 +501,14 @@ def arquivo():
     return render_template('arquivo.html', pacientes=pacientes_altas, mensagem=request.args.get('mensagem'))
     
 @app.route('/paciente/alta/<int:paciente_id>', methods=['POST'])
+@login_required
 def dar_alta(paciente_id):
     if session.get('nivel') not in ['admin', 'tecnico']:
-        return "Acesso Negado: Permissão restrita a Admin e Técnico.", 403
+        flash("Acesso Negado: Permissão restrita a Admin e Técnico.", 'danger')
+        return redirect(url_for('pacientes'))
     
-    conn = create_db_connection()
+    # CORRIGIDO: Usando get_db_connection com cursor padrão para inserção
+    conn = get_db_connection(pymysql.cursors.Cursor) 
     if conn is None: return "Erro de conexão.", 500
     cursor = conn.cursor()
     
@@ -406,82 +520,57 @@ def dar_alta(paciente_id):
         conn.commit()
         
         if cursor.rowcount > 0:
-            return redirect(url_for('arquivo', mensagem='Alta registrada e paciente arquivado com sucesso!'))
+            flash('Alta registrada e paciente arquivado com sucesso!', 'success')
+            return redirect(url_for('arquivo'))
         else:
-            return "Erro: Paciente não encontrado ou já tinha alta.", 404
+            flash("Erro: Paciente não encontrado ou já tinha alta.", 'danger')
+            return redirect(url_for('paciente_detalhes', paciente_id=paciente_id)) # Volta para os detalhes se der erro
             
     except Exception as e:
         conn.rollback()
         print(f"Erro ao registrar alta: {e}")
-        return f"Erro interno: {e}", 500
+        flash(f"Erro interno: {e}", 'danger')
+        return redirect(url_for('paciente_detalhes', paciente_id=paciente_id))
     finally:
         cursor.close()
         conn.close()
 
-@app.route('/arquivo/detalhes/<int:paciente_id>')
-def detalhes_prontuario(paciente_id):
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-        
-    conn = create_db_connection()
-    paciente = None
-    provas_vida = []
-    medicamentos_admin = []
-    
-    if conn:
-        cursor = conn.cursor(pymysql.cursors.DictCursor) 
-        
-        # 1. Buscar Dados Detalhados do Paciente (Prontuário)
-        cursor.execute("SELECT * FROM Pacientes WHERE id = %s", (paciente_id,))
-        paciente = cursor.fetchone()
-        
-        # 2. Buscar todas as Provas de Vida
-        cursor.execute("SELECT * FROM ProvasDeVida WHERE paciente_id = %s ORDER BY data_hora DESC", (paciente_id,))
-        provas_vida = cursor.fetchall()
-        
-        # 3. Buscar Histórico de Medicamentos
-        cursor.execute("SELECT * FROM AdministracaoMedicamentos WHERE paciente_id = %s ORDER BY data_hora DESC", (paciente_id,))
-        medicamentos_admin = cursor.fetchall()
 
-        cursor.close()
-        conn.close()
-        
-    if not paciente:
-        return "Paciente não encontrado.", 404
-        
-    return render_template('detalhes_prontuario.html', paciente=paciente, provas_vida=provas_vida, medicamentos_admin=medicamentos_admin)
-    
 # ==============================================================================
 # 👥 MÓDULO GERENCIAMENTO DE USUÁRIOS (CORRIGIDO)
 # ==============================================================================
 
 @app.route('/usuarios')
+@login_required
 def gerenciar_usuarios():
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-        
     if session['nivel'] not in ['admin', 'tecnico']:
-        return "Acesso Negado: Permissão restrita a Administradores e Técnicos.", 403
+        flash("Acesso Negado: Permissão restrita a Administradores e Técnicos.", 'danger')
+        return redirect(url_for('dashboard'))
 
-    conn = create_db_connection()
+    conn = get_db_connection() # Usando get_db_connection (DictCursor)
     usuarios = []
     if conn:
-        cursor = conn.cursor(pymysql.cursors.DictCursor) 
+        cursor = conn.cursor() # DictCursor
         
-        # 🚀 CORRIGIDO: Inclui nome_completo, data_nascimento e nacionalidade
-        sql_base = "SELECT id, nome_completo, usuario, data_nascimento, nivel_acesso, nacionalidade FROM Usuarios"
-        
-        # Filtra a visualização para Técnicos (não podem ver outros Admins/Técnicos)
-        if session['nivel'] == 'tecnico':
-            # Técnico vê somente Enfermeiros
-            sql = f"{sql_base} WHERE nivel_acesso = 'enfermeiro' ORDER BY usuario"
-        else: # Admin vê todos
-            sql = f"{sql_base} ORDER BY nivel_acesso DESC, usuario"
+        try:
+            # 🚀 CORRIGIDO: Inclui nome_completo, data_nascimento e nacionalidade
+            sql_base = "SELECT id, nome_completo, usuario, data_nascimento, nivel_acesso, nacionalidade FROM Usuarios"
             
-        cursor.execute(sql)
-        usuarios = cursor.fetchall()
-        cursor.close()
-        conn.close()
+            # Filtra a visualização para Técnicos (não podem ver outros Admins/Técnicos)
+            if session['nivel'] == 'tecnico':
+                # Técnico vê somente Enfermeiros
+                sql = f"{sql_base} WHERE nivel_acesso = 'enfermeiro' ORDER BY usuario"
+            else: # Admin vê todos
+                sql = f"{sql_base} ORDER BY nivel_acesso DESC, usuario"
+                
+            cursor.execute(sql)
+            usuarios = cursor.fetchall()
+            
+        except Exception as e:
+            print(f"Erro ao buscar usuários: {e}")
+        finally:
+            cursor.close()
+            conn.close()
         
     # Define os níveis que o usuário logado pode criar
     niveis_permitidos = []
@@ -498,6 +587,7 @@ def gerenciar_usuarios():
     )
 
 @app.route('/usuarios/adicionar', methods=['POST'])
+@login_required
 def adicionar_usuario():
     if session['nivel'] not in ['admin', 'tecnico']:
         return "Acesso Negado.", 403
@@ -514,13 +604,15 @@ def adicionar_usuario():
     nova_senha = dados['nova_senha']
     nivel_novo = dados['nivel_acesso']
 
-    conn = create_db_connection()
+    # CORRIGIDO: Usando get_db_connection com cursor padrão para inserção
+    conn = get_db_connection(pymysql.cursors.Cursor) 
     if conn is None: return "Erro de conexão.", 500
     cursor = conn.cursor()
 
     # 1. VERIFICAÇÃO DE HIERARQUIA E LIMITES
     if session['nivel'] == 'tecnico' and nivel_novo != 'enfermeiro':
         flash("Acesso Negado: Técnicos só podem adicionar Enfermeiros.", 'danger')
+        conn.close()
         return redirect(url_for('gerenciar_usuarios'))
     
     if session['nivel'] == 'admin' and nivel_novo == 'tecnico':
@@ -528,6 +620,7 @@ def adicionar_usuario():
         num_tecnicos = cursor.fetchone()[0]
         if num_tecnicos >= 5:
             flash("Limite máximo de 5 Técnicos atingido. Ação não permitida.", 'danger')
+            conn.close()
             return redirect(url_for('gerenciar_usuarios'))
 
     # 2. TRATAMENTO DA DATA DE NASCIMENTO (Convertendo 'AAAA-MM-DD' para o formato MySQL DATE)
@@ -535,6 +628,7 @@ def adicionar_usuario():
         data_nascimento_mysql = datetime.strptime(data_nascimento_form, '%Y-%m-%d').date()
     except ValueError:
         flash("Erro: Data de nascimento inválida.", 'danger')
+        conn.close()
         return redirect(url_for('gerenciar_usuarios'))
         
     # 3. INSERÇÃO DO NOVO USUÁRIO
@@ -573,13 +667,16 @@ def adicionar_usuario():
         conn.close()
         
 @app.route('/usuarios/excluir/<int:user_id>', methods=['POST'])
+@login_required
 def excluir_usuario(user_id):
     if session['nivel'] not in ['admin', 'tecnico']:
-        return "Acesso Negado.", 403
+        flash("Acesso Negado.", 'danger')
+        return redirect(url_for('gerenciar_usuarios'))
         
-    conn = create_db_connection()
+    # CORRIGIDO: Usando get_db_connection com cursor padrão para exclusão
+    conn = get_db_connection(pymysql.cursors.Cursor) 
     if conn is None: return "Erro de conexão.", 500
-    cursor = conn.cursor(pymysql.cursors.DictCursor) 
+    cursor = conn.cursor(pymysql.cursors.DictCursor) # Usa DictCursor para buscar
     
     # 1. Busca o nível do usuário a ser excluído para verificação
     cursor.execute("SELECT nivel_acesso FROM Usuarios WHERE id = %s", (user_id,))
@@ -592,14 +689,19 @@ def excluir_usuario(user_id):
         return redirect(url_for('gerenciar_usuarios'))
 
     nivel_deletado = user_to_delete['nivel_acesso']
+    # Fecha o cursor DictCursor e abre o padrão para DELETE
+    cursor.close()
+    cursor = conn.cursor() 
 
     # 2. VERIFICAÇÃO DE HIERARQUIA
     if session['nivel'] == 'tecnico' and nivel_deletado != 'enfermeiro':
         flash("Acesso Negado: Técnicos só podem excluir usuários de nível Enfermeiro.", 'danger')
+        conn.close()
         return redirect(url_for('gerenciar_usuarios'))
     
     if nivel_deletado == 'admin':
         flash("Acesso Negado: Não é permitido excluir o Administrador por esta via.", 'danger')
+        conn.close()
         return redirect(url_for('gerenciar_usuarios'))
 
     # 3. EXCLUSÃO
