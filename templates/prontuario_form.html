@@ -9,11 +9,28 @@
         /* Estilo específico para o formulário */
         .prontuario-form-container { max-width: 800px; margin: 30px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
         .prontuario-form-container h3 { border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 20px; color: #007bff; }
-        .form-row { display: flex; gap: 20px; margin-bottom: 15px; }
+        
+        /* 💡 CORREÇÃO 1: Alinha todos os itens da linha verticalmente ao centro */
+        .form-row { 
+            display: flex; 
+            gap: 20px; 
+            margin-bottom: 15px; 
+            align-items: center; /* Adicionado para centralizar verticalmente */
+        }
+        
         .form-row > .form-group { flex: 1; }
         .form-group label { font-weight: bold; margin-bottom: 5px; display: block;}
         .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .checkbox-sn { display: flex; align-items: center; gap: 10px; }
+        
+        /* 💡 CORREÇÃO 2: Ajusta o checkbox para alinhar com os outros campos */
+        .checkbox-sn { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            /* Adicionado padding-top para compensar a altura da label dos inputs/selects */
+            padding-top: 13px; 
+        }
+        
         .action-buttons { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; }
         /* Estilo para o botão de Prova de Vida */
         .btn-prova-vida { 
@@ -104,7 +121,7 @@
 
             <div class="form-group">
                 <label>Medicamento Tomado na Entrada (ou prescrito):</label>
-                <div class="form-row">
+                <div class="form-row"> 
                     <div class="form-group" style="flex: 2;">
                         <select id="medicamento_entrada" name="medicamento_entrada">
                             <option value="">Nenhum/Não Aplicável</option>
@@ -154,7 +171,7 @@
             document.getElementById('outro_medicamento_group').style.display = display;
         });
 
-        // Lógica de Preenchimento Automático do CEP (Se for implementado em cep_autofill.js)
+        // Lógica de Preenchimento Automático do CEP (ViaCEP)
         document.addEventListener('DOMContentLoaded', function() {
             var cepInput = document.getElementById('cep');
             if (cepInput) {

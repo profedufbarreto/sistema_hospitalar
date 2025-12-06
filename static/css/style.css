@@ -93,3 +93,289 @@ body {
     margin-bottom: 15px;
     font-weight: bold;
 }
+
+/* Adicionar isto no final de static/css/style.css */
+
+/* Módulo Arquivo (Histórico de Altas) */
+.arquivo-container { 
+    max-width: 1200px; 
+    margin: 30px auto; 
+    padding: 20px; 
+}
+
+.arquivo-container table { 
+    width: 100%; 
+    margin-top: 20px; 
+}
+
+.arquivo-container h3 { 
+    color: #5a6268; 
+    border-bottom: 1px solid #eee; 
+    padding-bottom: 10px; 
+    margin-bottom: 20px; 
+}
+
+.btn-detalhes { 
+    background-color: #17a2b8; 
+    color: white; 
+    padding: 5px 10px; 
+    border: none; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    text-decoration: none; 
+    display: inline-block; 
+}
+
+.btn-detalhes:hover { 
+    background-color: #138496; 
+}
+
+.mensagem-sucesso { 
+    background-color: #d4edda; 
+    color: #155724; 
+    padding: 10px; 
+    border-radius: 4px; 
+    margin-bottom: 15px; 
+}
+
+/* É altamente recomendável adicionar estilos básicos de tabela aqui também: */
+.arquivo-container table th,
+.arquivo-container table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.arquivo-container table th {
+    background-color: #f2f2f2;
+}
+
+/* static/css/conversor.css */
+
+/* Estilos específicos do conversor */
+.conversor-container { 
+    max-width: 600px; 
+    margin: 30px auto; 
+    padding: 30px; 
+    background: white; 
+    border-radius: 8px; 
+    box-shadow: 0 0 15px rgba(0,0,0,0.1); 
+    text-align: center; 
+}
+
+.conversor-container h3 { 
+    color: #007bff; 
+    border-bottom: 1px solid #eee; 
+    padding-bottom: 15px; 
+    margin-bottom: 30px; 
+}
+
+.conversor-group { 
+    margin-bottom: 25px; 
+    padding: 15px; 
+    border: 1px dashed #ccc; 
+    border-radius: 6px; 
+}
+
+.conversor-group label { 
+    font-weight: bold; 
+    margin-bottom: 8px; 
+    display: block; 
+    color: #333; 
+}
+
+.conversor-group input { 
+    width: 80%; 
+    padding: 12px; 
+    font-size: 1.2em; 
+    text-align: center; 
+    border: 2px solid #ddd; 
+    border-radius: 4px; 
+    transition: border-color 0.3s; 
+}
+
+.conversor-group input:focus { 
+    border-color: #007bff; 
+    outline: none; 
+}
+
+.resultado { 
+    margin-top: 20px; 
+    padding: 15px; 
+    background-color: #e9f7ef; 
+    border: 1px solid #28a745; 
+    border-radius: 4px; 
+    font-size: 1.1em; 
+    font-weight: bold; 
+    color: #28a745; 
+}
+
+.observacao { 
+    font-size: 0.9em; 
+    color: #6c757d; 
+    margin-top: 15px; 
+}
+
+/* static/css/detalhes.css */
+
+.detalhes-container { 
+    max-width: 900px; 
+    margin: 30px auto; 
+    padding: 30px; 
+    background: white; 
+    border-radius: 8px; 
+    box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+}
+
+.section-header { 
+    margin-top: 30px; 
+    padding-bottom: 5px; 
+    border-bottom: 2px solid #007bff; 
+    color: #007bff; 
+}
+
+.data-item { 
+    margin-bottom: 10px; 
+}
+
+.data-item strong { 
+    display: inline-block; 
+    width: 150px; /* Garante que a label tenha um tamanho fixo para alinhamento */
+    color: #333; 
+}
+
+/* Estilos para a lista de Prova de Vida */
+.prova-vida-list { 
+    margin-top: 20px; 
+    border: 1px solid #ddd; 
+    padding: 15px; 
+    border-radius: 6px; 
+}
+
+.prova-vida-item { 
+    border-bottom: 1px dashed #eee; 
+    padding: 10px 0; 
+}
+
+.prova-vida-item:last-child { 
+    border-bottom: none; 
+}
+
+.pv-data { 
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 15px; 
+    font-size: 0.9em; 
+}
+
+.pv-data span { 
+    flex: 1 1 45%; /* Permite que os spans ocupem cerca de metade da largura */
+}
+
+.pv-obs { 
+    margin-top: 5px; 
+    font-style: italic; 
+    color: #6c757d; 
+}
+
+
+/* static/css/estoque.css */
+
+/* Estilos de Estoque */
+.estoque-container { 
+    max-width: 1000px; 
+    margin: 30px auto; 
+    padding: 20px; 
+}
+
+.estoque-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 20px; 
+}
+
+.btn-add { 
+    background-color: #ffc107; 
+    color: #333; 
+    padding: 10px 15px; 
+    border: none; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    font-weight: bold; 
+}
+.btn-add:hover { 
+    background-color: #e0b431; 
+}
+
+/* Estilos de Tabela */
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    background-color: white; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+}
+th, td { 
+    padding: 12px; 
+    text-align: left; 
+    border-bottom: 1px solid #ddd; 
+}
+th { 
+    background-color: #007bff; 
+    color: white; 
+}
+tr:hover { 
+    background-color: #f5f5f5; 
+}
+.low-stock { 
+    background-color: #f8d7da; /* Fundo vermelho claro */
+    color: #721c24; /* Texto vermelho escuro */
+    font-weight: bold; 
+}
+
+/* Modal para Adicionar/Editar */
+.modal { 
+    display: none; 
+    position: fixed; 
+    z-index: 10; 
+    left: 0; 
+    top: 0; 
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.4); 
+}
+.modal-content { 
+    background-color: #fefefe; 
+    margin: 10% auto; 
+    padding: 20px; 
+    border: 1px solid #888; 
+    width: 80%; 
+    max-width: 400px; 
+    border-radius: 8px; 
+}
+.close-btn { 
+    color: #aaa; 
+    float: right; 
+    font-size: 28px; 
+    font-weight: bold; 
+}
+.close-btn:hover, .close-btn:focus { 
+    color: #000; 
+    text-decoration: none; 
+    cursor: pointer; 
+}
+.modal-content input { 
+    margin-bottom: 10px; 
+    padding: 8px; 
+    width: 100%; 
+    box-sizing: border-box; 
+}
+.modal-content button { 
+    background-color: #28a745; 
+    color: white; 
+    padding: 10px 15px; 
+    border: none; 
+    border-radius: 4px; 
+    cursor: pointer; 
+}

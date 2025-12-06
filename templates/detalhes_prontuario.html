@@ -1,22 +1,12 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <title>Detalhes do Prontuário | {{ paciente.nome }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <style>
-        .detalhes-container { max-width: 900px; margin: 30px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .section-header { margin-top: 30px; padding-bottom: 5px; border-bottom: 2px solid #007bff; color: #007bff; }
-        .data-item { margin-bottom: 10px; }
-        .data-item strong { display: inline-block; width: 150px; color: #333; }
-        
-        .prova-vida-list { margin-top: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 6px; }
-        .prova-vida-item { border-bottom: 1px dashed #eee; padding: 10px 0; }
-        .prova-vida-item:last-child { border-bottom: none; }
-        .pv-data { display: flex; flex-wrap: wrap; gap: 15px; font-size: 0.9em; }
-        .pv-data span { flex: 1 1 45%; }
-        .pv-obs { margin-top: 5px; font-style: italic; color: #6c757d; }
-    </style>
-</head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/detalhes.css') }}">
+    </head>
 <body>
     <header class="main-header">
         <h2>Prontuário Arquivado: {{ paciente.nome }}</h2>
