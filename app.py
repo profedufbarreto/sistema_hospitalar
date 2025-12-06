@@ -1,9 +1,12 @@
-# app.py - SISTEMA DE PRONTUÁRIO HOSPITALAR (FINAL CONSOLIDADO E ORGANIZADO)
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from database import create_db_connection # <--- Isso já está correto
+# ... (o resto do app.py)
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-# Assumimos que 'database' tem a função create_db_connection()
 from database import create_db_connection
 from datetime import datetime
+# Importa funções de segurança do próprio Flask (Werkzeug)
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 # Chave secreta é OBRIGATÓRIA para usar sessões
@@ -31,15 +34,16 @@ def login():
             
         cursor = conn.cursor(dictionary=True)
         
-        # ATENÇÃO: EM PRODUÇÃO, USE HASH DE SENHA!
-        sql = "SELECT * FROM Usuarios WHERE usuario = %s AND senha = %s"
-        cursor.execute(sql, (usuario, senha))
+        # 1. BUSCA O USUÁRIO PELO NOME
+        sql = "SELECT * FROM Usuarios WHERE usuario = %s"
+        cursor.execute(sql, (usuario,))
         user = cursor.fetchone()
         
         cursor.close()
         conn.close()
         
-        if user:
+        if user and check_password_hash(user['senha'], senha):
+            # 2. SE O USUÁRIO EXISTE, CHECA O HASH DA SENHA (CORREÇÃO DE SEGURANÇA)
             session['usuario'] = user['usuario']
             session['nivel'] = user['nivel_acesso']
             return redirect(url_for('dashboard'))
@@ -55,7 +59,7 @@ def logout():
     return redirect(url_for('login'))
 
 # ==============================================================================
-# 📊 ROTA PRINCIPAL (DASHBOARD) - CORRIGIDA
+# 📊 ROTA PRINCIPAL (DASHBOARD)
 # ==============================================================================
 
 @app.route('/dashboard')
@@ -103,7 +107,7 @@ def dashboard():
         usuario=session['usuario'], 
         nivel=session['nivel'], 
         dados=dados_dashboard,
-        mensagem=request.args.get('mensagem') # Permite exibir a mensagem de sucesso
+        mensagem=request.args.get('mensagem')
     )
 
 # ==============================================================================
@@ -149,12 +153,11 @@ def salvar_prontuario():
         INSERT INTO Pacientes (nome, data_nascimento, cep, endereco, bairro, data_entrada, procedimento, status)
         VALUES (%s, %s, %s, %s, %s, %s, %s, 'internado')
         """
-        # data_nascimento_mysql = dados['data_nascimento']
-        # Usando datetime.strptime para garantir o formato correto, tratando possível erro de input
+        # Trata a conversão de data
         try:
-             data_nascimento_mysql = datetime.strptime(dados['data_nascimento'], '%Y-%m-%d').date()
+            data_nascimento_mysql = datetime.strptime(dados['data_nascimento'], '%Y-%m-%d').date()
         except ValueError:
-             data_nascimento_mysql = None # Ou tratar o erro de outra forma
+            data_nascimento_mysql = None 
 
         data_entrada_mysql = dados['hora_entrada'].replace('T', ' ')
         
@@ -165,7 +168,6 @@ def salvar_prontuario():
             f"{dados['endereco']}, {dados['numero']}",
             dados['bairro'], 
             data_entrada_mysql,
-            # dados['quem_deu_baixa'], # Este campo é para quando o paciente recebe alta, foi removido da inserção inicial
             dados['procedimento']
         ))
         
@@ -175,18 +177,21 @@ def salvar_prontuario():
         medicamento = dados.get('medicamento_entrada')
         medicamento_nome = None
         
-        # Lógica para obter o nome do medicamento (select ou outro)
         if medicamento and medicamento != 'outro':
             medicamento_nome = medicamento
         elif medicamento == 'outro' and dados.get('outro_medicamento_nome'):
-            # Se for 'outro', adicionamos o medicamento ao Estoque (opcional: criar nova rota para isso)
             medicamento_nome = dados['outro_medicamento_nome']
             # Adiciona o novo medicamento ao estoque com quantidade inicial zero, se não existir
             cursor.execute("INSERT IGNORE INTO Estoque (nome_medicamento, quantidade, unidade, data_ultima_entrada) VALUES (%s, 0, 'UN', NOW())", (medicamento_nome,))
 
 
         if medicamento_nome:
-            dose = float(dados.get('dose', 0))
+            # CORREÇÃO: Tenta converter a dose para float, evitando ValueError se o campo estiver vazio ou for inválido
+            try:
+                dose = float(dados.get('dose') or 0.0) 
+            except ValueError:
+                conn.close()
+                return "Erro: Dose de medicamento inválida. Use apenas números.", 400
             
             sql_med = """
             INSERT INTO AdministracaoMedicamentos (paciente_id, medicamento_nome, quantidade_administrada, se_necessario, data_hora)
@@ -202,7 +207,6 @@ def salvar_prontuario():
             
             # Baixa de Estoque
             if dose > 0:
-                # Subtrai a dose, mas garante que não fique negativo (UNSIGNED INT)
                 sql_baixa = "UPDATE Estoque SET quantidade = GREATEST(quantidade - %s, 0) WHERE nome_medicamento = %s"
                 cursor.execute(sql_baixa, (dose, medicamento_nome))
                 
@@ -517,9 +521,10 @@ def adicionar_usuario():
 
     # 2. INSERÇÃO DO NOVO USUÁRIO
     try:
-        # ATENÇÃO: A senha DEVE ser hasheada aqui
+        # CORREÇÃO DE SEGURANÇA: HASH DA SENHA ANTES DE INSERIR
+        hashed_password = generate_password_hash(nova_senha) 
         sql = "INSERT INTO Usuarios (usuario, senha, nivel_acesso) VALUES (%s, %s, %s)"
-        cursor.execute(sql, (novo_usuario, nova_senha, nivel_novo))
+        cursor.execute(sql, (novo_usuario, hashed_password, nivel_novo))
         conn.commit()
         return redirect(url_for('gerenciar_usuarios'))
         
