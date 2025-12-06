@@ -9,30 +9,9 @@
 </head>
 <body>
     <header class="main-header">
-        <h2>Bem-vindo(a), {{ usuario }} ({{ nivel | upper }})</h2>
-        <nav>
-            <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
-            <a href="{{ url_for('prontuario') }}">Prontuário</a>
-            <a href="{{ url_for('estoque') }}">Estoque</a>
-            <a href="{{ url_for('conversor') }}">Conversor</a>
-            <a href="{{ url_for('prova_vida') }}">Prova de Vida</a> 
-            <a href="{{ url_for('arquivo') }}">Arquivo</a>
-            
-            {% if nivel in ['admin', 'tecnico'] %}
-                <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
-            {% endif %}
-            
-            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
-        </nav>
-    </header>
+        </header>
 
     <main class="dashboard-content">
-        {% if mensagem %}
-            <div class="alert alert-success">{{ mensagem }}</div>
-        {% endif %}
-        
-        <h3>Visão Geral Estatística</h3>
-        
         <section class="kpi-cards">
             <div class="card card-internados">
                 <h4>Internados Atuais</h4>
@@ -68,6 +47,12 @@
         
     </main>
 
+    <script>
+        // Transfere o dicionário completo 'dados' do Python para uma variável JavaScript.
+        // O filtro '|tojson' garante a formatação correta.
+        const FLASK_DASHBOARD_DATA = {{ dados|tojson }};
+    </script>
+    
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

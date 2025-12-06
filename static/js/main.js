@@ -1,47 +1,32 @@
-// static/js/main.js
+// static/js/main.js - CORRIGIDO
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Função que simula a busca de dados (em um sistema real, seria uma requisição AJAX)
-    function fetchDashboardData() {
-        // --- DADOS SIMULADOS (Em produção, o Python enviaria estes dados) ---
-        return {
-            totalInternados: 125,
-            altasMes: 87,
-            estoqueCritico: 3,
-            
-            motivosData: {
-                labels: ['Infecção Respiratória', 'Trauma Leve', 'Pós-Cirúrgico', 'Diabetes', 'Cardíaco'],
-                data: [30, 25, 20, 15, 10]
-            },
-            
-            diasData: {
-                labels: ['Medicina Interna', 'Pediatria', 'Cirurgia', 'UTI'],
-                data: [4.5, 3.2, 5.0, 7.8] // Média de dias
-            }
-        };
-    }
-
-    const data = fetchDashboardData();
+    
+    // ⚠️ Usa a variável injetada pelo Flask no dashboard.html
+    const data = FLASK_DASHBOARD_DATA;
 
     // 1. Atualiza os Cartões KPI
-    document.getElementById('total-internados').textContent = data.totalInternados;
-    document.getElementById('altas-mes').textContent = data.altasMes;
-    document.getElementById('estoque-critico').textContent = data.estoqueCritico;
+    // O JavaScript AGORA USA O VALOR INJETADO PELO JINJA.
+    // SE O PYTHON ENVIOU 0 (ZERO), O JS IRÁ ATUALIZAR PARA 0.
+    document.getElementById('total-internados').textContent = data.total_internados;
+    document.getElementById('altas-mes').textContent = data.altas_ultimos_7_dias;
+    document.getElementById('estoque-critico').textContent = data.baixo_estoque;
 
     // 2. Gráfico de Motivos de Internação (Gráfico de Rosca/Pizza)
     const ctxMotivos = document.getElementById('motivosChart').getContext('2d');
     new Chart(ctxMotivos, {
         type: 'doughnut',
         data: {
-            labels: data.motivosData.labels,
+            // Usa as chaves do Python
+            labels: data.motivos_data.labels, 
             datasets: [{
-                data: data.motivosData.data,
+                data: data.motivos_data.data,
                 backgroundColor: [
-                    '#007bff', // Azul
-                    '#28a745', // Verde
-                    '#ffc107', // Amarelo
-                    '#dc3545', // Vermelho
-                    '#6c757d'  // Cinza
+                    '#007bff',
+                    '#28a745',
+                    '#ffc107',
+                    '#dc3545',
+                    '#6c757d'
                 ],
                 hoverOffset: 4
             }]
@@ -64,11 +49,12 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(ctxDias, {
         type: 'bar',
         data: {
-            labels: data.diasData.labels,
+            // Usa as chaves do Python
+            labels: data.dias_data.labels,
             datasets: [{
                 label: 'Dias Médios',
-                data: data.diasData.data,
-                backgroundColor: '#17a2b8', // Cor Teal/Ciano
+                data: data.dias_data.data,
+                backgroundColor: '#17a2b8',
                 borderColor: '#17a2b8',
                 borderWidth: 1
             }]
