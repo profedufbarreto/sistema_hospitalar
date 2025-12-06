@@ -1,15 +1,16 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-# CORREÇÃO 1: Importa a função setup_database para inicialização
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+# Importa a função setup_database para inicialização
 from database import create_db_connection, setup_database 
 from datetime import datetime
 # Importa funções de segurança do próprio Flask (Werkzeug)
 from werkzeug.security import generate_password_hash, check_password_hash
-# CORREÇÃO 2: Importa o módulo de cursores para usar DictCursor
+# Importa o módulo de cursores para usar DictCursor
 import pymysql.cursors 
+from pymysql import IntegrityError # Importa para tratar erro de usuário duplicado
 
 app = Flask(__name__)
 # Chave secreta é OBRIGATÓRIA para usar sessões
-app.secret_key = 'sua_chave_secreta_super_segura_42'
+app.secret_key = 'root'
 
 # ==============================================================================
 # 🔑 ROTAS DE AUTENTICAÇÃO E NAVEGAÇÃO BÁSICA
@@ -31,7 +32,6 @@ def login():
         if conn is None:
             return render_template('login.html', erro='Erro de conexão com o banco de dados.')
             
-        # CORREÇÃO 3: Usando DictCursor do PyMySQL
         cursor = conn.cursor(pymysql.cursors.DictCursor) 
         
         # 1. BUSCA O USUÁRIO PELO NOME
@@ -43,7 +43,7 @@ def login():
         conn.close()
         
         if user and check_password_hash(user['senha'], senha):
-            # 2. SE O USUÁRIO EXISTE, CHECA O HASH DA SENHA (CORREÇÃO DE SEGURANÇA)
+            # 2. CHECA O HASH DA SENHA E DEFINE A SESSÃO
             session['usuario'] = user['usuario']
             session['nivel'] = user['nivel_acesso']
             return redirect(url_for('dashboard'))
@@ -76,43 +76,31 @@ def dashboard():
     }
     
     if conn:
-        # Cursor padrão é suficiente, pois está usando fetchone()[0]
         cursor = conn.cursor() 
         
         try:
             # 1. TOTAL DE PACIENTES INTERNADOS
             cursor.execute("SELECT COUNT(*) FROM Pacientes WHERE status = 'internado'")
-            count_internados = cursor.fetchone()[0]
-            dados_dashboard['total_internados'] = count_internados
-            
-            # *** LINHAS DE DEBUG REMOVIDAS ***
+            dados_dashboard['total_internados'] = cursor.fetchone()[0]
             
             # 2. ALTAS NOS ÚLTIMOS 7 DIAS
             cursor.execute("SELECT COUNT(*) FROM Pacientes WHERE status = 'alta' AND data_baixa >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")
-            count_altas = cursor.fetchone()[0]
-            dados_dashboard['altas_ultimos_7_dias'] = count_altas
-            
-            # *** LINHAS DE DEBUG REMOVIDAS ***
+            dados_dashboard['altas_ultimos_7_dias'] = cursor.fetchone()[0]
             
             # 3. ITENS COM BAIXO ESTOQUE (Exemplo: quantidade < 10)
             cursor.execute("SELECT COUNT(*) FROM Estoque WHERE quantidade < 10")
-            count_estoque = cursor.fetchone()[0]
-            dados_dashboard['baixo_estoque'] = count_estoque
-            
-            # *** LINHAS DE DEBUG REMOVIDAS ***
+            dados_dashboard['baixo_estoque'] = cursor.fetchone()[0]
 
             # 4. PROVAS DE VIDA REGISTRADAS NAS ÚLTIMAS 24H
             cursor.execute("SELECT COUNT(*) FROM ProvasDeVida WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)")
             dados_dashboard['provas_vida_ultimas_24h'] = cursor.fetchone()[0]
             
         except Exception as e:
-            # Se a conexão falhar, o erro será impresso.
             print(f"Erro CRÍTICO ao buscar dados do dashboard: {e}")
         finally:
             cursor.close()
             conn.close()
             
-    # O template 'dashboard.html' deve usar a variável 'dados' para exibir os resultados.
     return render_template(
         'dashboard.html', 
         usuario=session['usuario'], 
@@ -133,14 +121,12 @@ def prontuario():
     conn = create_db_connection()
     medicamentos = []
     if conn:
-        # CORREÇÃO 4: Usando DictCursor do PyMySQL
         cursor = conn.cursor(pymysql.cursors.DictCursor) 
         cursor.execute("SELECT nome_medicamento FROM Estoque WHERE quantidade > 0 ORDER BY nome_medicamento")
         medicamentos = cursor.fetchall()
         cursor.close()
         conn.close()
         
-    # Passa a lista de medicamentos para o formulário
     return render_template(
         'prontuario_form.html', 
         usuario=session['usuario'],
@@ -198,7 +184,7 @@ def salvar_prontuario():
 
 
         if medicamento_nome:
-            # CORREÇÃO: Tenta converter a dose para float, evitando ValueError se o campo estiver vazio ou for inválido
+            # Tenta converter a dose para float, evitando ValueError se o campo estiver vazio ou for inválido
             try:
                 dose = float(dados.get('dose') or 0.0) 
             except ValueError:
@@ -252,7 +238,6 @@ def estoque():
     conn = create_db_connection()
     itens_estoque = []
     if conn:
-        # CORREÇÃO 5: Usando DictCursor do PyMySQL
         cursor = conn.cursor(pymysql.cursors.DictCursor) 
         cursor.execute("SELECT * FROM Estoque ORDER BY nome_medicamento")
         itens_estoque = cursor.fetchall()
@@ -325,7 +310,6 @@ def prova_vida():
     conn = create_db_connection()
     pacientes_internados = []
     if conn:
-        # CORREÇÃO 6: Usando DictCursor do PyMySQL
         cursor = conn.cursor(pymysql.cursors.DictCursor) 
         cursor.execute("SELECT id, nome FROM Pacientes WHERE status = 'internado' ORDER BY nome")
         pacientes_internados = cursor.fetchall()
@@ -397,7 +381,6 @@ def arquivo():
     conn = create_db_connection()
     pacientes_altas = []
     if conn:
-        # CORREÇÃO 7: Usando DictCursor do PyMySQL
         cursor = conn.cursor(pymysql.cursors.DictCursor) 
         cursor.execute("SELECT id, nome, data_entrada, data_baixa, procedimento FROM Pacientes WHERE status = 'alta' ORDER BY data_baixa DESC")
         pacientes_altas = cursor.fetchall()
@@ -446,7 +429,6 @@ def detalhes_prontuario(paciente_id):
     medicamentos_admin = []
     
     if conn:
-        # CORREÇÃO 8: Usando DictCursor do PyMySQL
         cursor = conn.cursor(pymysql.cursors.DictCursor) 
         
         # 1. Buscar Dados Detalhados do Paciente (Prontuário)
@@ -470,7 +452,7 @@ def detalhes_prontuario(paciente_id):
     return render_template('detalhes_prontuario.html', paciente=paciente, provas_vida=provas_vida, medicamentos_admin=medicamentos_admin)
     
 # ==============================================================================
-# 👥 MÓDULO GERENCIAMENTO DE USUÁRIOS
+# 👥 MÓDULO GERENCIAMENTO DE USUÁRIOS (CORRIGIDO)
 # ==============================================================================
 
 @app.route('/usuarios')
@@ -484,14 +466,17 @@ def gerenciar_usuarios():
     conn = create_db_connection()
     usuarios = []
     if conn:
-        # CORREÇÃO 9: Usando DictCursor do PyMySQL
         cursor = conn.cursor(pymysql.cursors.DictCursor) 
+        
+        # 🚀 CORRIGIDO: Inclui nome_completo, data_nascimento e nacionalidade
+        sql_base = "SELECT id, nome_completo, usuario, data_nascimento, nivel_acesso, nacionalidade FROM Usuarios"
+        
         # Filtra a visualização para Técnicos (não podem ver outros Admins/Técnicos)
         if session['nivel'] == 'tecnico':
             # Técnico vê somente Enfermeiros
-            sql = "SELECT id, usuario, nivel_acesso FROM Usuarios WHERE nivel_acesso = 'enfermeiro' ORDER BY usuario"
+            sql = f"{sql_base} WHERE nivel_acesso = 'enfermeiro' ORDER BY usuario"
         else: # Admin vê todos
-            sql = "SELECT id, usuario, nivel_acesso FROM Usuarios ORDER BY nivel_acesso DESC, usuario"
+            sql = f"{sql_base} ORDER BY nivel_acesso DESC, usuario"
             
         cursor.execute(sql)
         usuarios = cursor.fetchall()
@@ -518,7 +503,14 @@ def adicionar_usuario():
         return "Acesso Negado.", 403
 
     dados = request.form
-    novo_usuario = dados['novo_usuario'].strip()
+    
+    # 🚨 NOVOS CAMPOS CAPTURADOS: nome_completo, data_nascimento e nacionalidade
+    nome_completo = dados['nome_completo'].strip()
+    data_nascimento_form = dados['data_nascimento'] # YYYY-MM-DD
+    nacionalidade = dados['nacionalidade'].strip()
+    # ----------------------------------
+    
+    novo_usuario = dados['usuario'].strip()
     nova_senha = dados['nova_senha']
     nivel_novo = dados['nivel_acesso']
 
@@ -528,30 +520,54 @@ def adicionar_usuario():
 
     # 1. VERIFICAÇÃO DE HIERARQUIA E LIMITES
     if session['nivel'] == 'tecnico' and nivel_novo != 'enfermeiro':
-        return "Acesso Negado: Técnicos só podem adicionar Enfermeiros.", 403
+        flash("Acesso Negado: Técnicos só podem adicionar Enfermeiros.", 'danger')
+        return redirect(url_for('gerenciar_usuarios'))
     
     if session['nivel'] == 'admin' and nivel_novo == 'tecnico':
         cursor.execute("SELECT COUNT(*) FROM Usuarios WHERE nivel_acesso = 'tecnico'")
         num_tecnicos = cursor.fetchone()[0]
         if num_tecnicos >= 5:
-            return "Limite máximo de 5 Técnicos atingido. Ação não permitida.", 403
+            flash("Limite máximo de 5 Técnicos atingido. Ação não permitida.", 'danger')
+            return redirect(url_for('gerenciar_usuarios'))
 
-    # 2. INSERÇÃO DO NOVO USUÁRIO
+    # 2. TRATAMENTO DA DATA DE NASCIMENTO (Convertendo 'AAAA-MM-DD' para o formato MySQL DATE)
     try:
-        # CORREÇÃO DE SEGURANÇA: HASH DA SENHA ANTES DE INSERIR
-        hashed_password = generate_password_hash(nova_senha) 
-        sql = "INSERT INTO Usuarios (usuario, senha, nivel_acesso) VALUES (%s, %s, %s)"
-        cursor.execute(sql, (novo_usuario, hashed_password, nivel_novo))
-        conn.commit()
+        data_nascimento_mysql = datetime.strptime(data_nascimento_form, '%Y-%m-%d').date()
+    except ValueError:
+        flash("Erro: Data de nascimento inválida.", 'danger')
         return redirect(url_for('gerenciar_usuarios'))
         
+    # 3. INSERÇÃO DO NOVO USUÁRIO
+    try:
+        hashed_password = generate_password_hash(nova_senha) 
+        
+        # 🚀 CORRIGIDO: Adicionada nacionalidade e nome_completo ao comando SQL
+        sql = """
+        INSERT INTO Usuarios (nome_completo, usuario, senha, data_nascimento, nivel_acesso, nacionalidade) 
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(sql, (
+            nome_completo,
+            novo_usuario,
+            hashed_password,
+            data_nascimento_mysql, # Já formatada como objeto date
+            nivel_novo,
+            nacionalidade # NOVO CAMPO INSERIDO
+        ))
+        conn.commit()
+        flash(f"Usuário {novo_usuario} adicionado com sucesso!", 'success')
+        return redirect(url_for('gerenciar_usuarios'))
+        
+    except IntegrityError:
+        conn.rollback()
+        # Erro de integridade (usuário já existe)
+        flash("Erro: O nome de usuário já existe.", 'danger')
+        return redirect(url_for('gerenciar_usuarios'))
     except Exception as e:
         conn.rollback()
         print(f"Erro ao adicionar usuário: {e}")
-        # Erro de integridade (usuário já existe)
-        if 'Duplicate entry' in str(e):
-             return "Erro: O nome de usuário já existe.", 500
-        return f"Erro: Não foi possível adicionar o usuário. {e}", 500
+        flash(f"Erro: Não foi possível adicionar o usuário. {e}", 'danger')
+        return redirect(url_for('gerenciar_usuarios'))
     finally:
         cursor.close()
         conn.close()
@@ -563,7 +579,6 @@ def excluir_usuario(user_id):
         
     conn = create_db_connection()
     if conn is None: return "Erro de conexão.", 500
-    # CORREÇÃO 10: Usando DictCursor do PyMySQL
     cursor = conn.cursor(pymysql.cursors.DictCursor) 
     
     # 1. Busca o nível do usuário a ser excluído para verificação
@@ -573,27 +588,32 @@ def excluir_usuario(user_id):
     if not user_to_delete:
         cursor.close()
         conn.close()
-        return "Usuário não encontrado.", 404
+        flash("Usuário não encontrado.", 'warning')
+        return redirect(url_for('gerenciar_usuarios'))
 
     nivel_deletado = user_to_delete['nivel_acesso']
 
     # 2. VERIFICAÇÃO DE HIERARQUIA
     if session['nivel'] == 'tecnico' and nivel_deletado != 'enfermeiro':
-        return "Acesso Negado: Técnicos só podem excluir usuários de nível Enfermeiro.", 403
+        flash("Acesso Negado: Técnicos só podem excluir usuários de nível Enfermeiro.", 'danger')
+        return redirect(url_for('gerenciar_usuarios'))
     
     if nivel_deletado == 'admin':
-        return "Acesso Negado: Não é permitido excluir o Administrador por esta via.", 403
+        flash("Acesso Negado: Não é permitido excluir o Administrador por esta via.", 'danger')
+        return redirect(url_for('gerenciar_usuarios'))
 
     # 3. EXCLUSÃO
     try:
         sql = "DELETE FROM Usuarios WHERE id = %s"
         cursor.execute(sql, (user_id,))
         conn.commit()
+        flash("Usuário excluído com sucesso.", 'success')
         return redirect(url_for('gerenciar_usuarios'))
     except Exception as e:
         conn.rollback()
         print(f"Erro ao excluir usuário: {e}")
-        return f"Erro ao excluir usuário: {e}", 500
+        flash(f"Erro ao excluir usuário: {e}", 'danger')
+        return redirect(url_for('gerenciar_usuarios'))
     finally:
         cursor.close()
         conn.close()
@@ -604,8 +624,8 @@ def excluir_usuario(user_id):
 # ==============================================================================
 
 if __name__ == '__main__':
-    # CORREÇÃO 11: Chama a função de setup do banco de dados ANTES de iniciar o servidor
+    # Chama a função de setup do banco de dados ANTES de iniciar o servidor
     setup_database() 
     
-    # CORREÇÃO 12: Inicia o servidor Flask
+    # Inicia o servidor Flask
     app.run(debug=True)

@@ -6,14 +6,54 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
     <style>
-        .usuarios-container { max-width: 1000px; margin: 30px auto; padding: 20px; }
-        .usuarios-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .usuarios-header h3 { color: #5a6268; }
-        .form-adicionar { background: #f8f9fa; padding: 20px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 30px; }
-        .form-adicionar input, .form-adicionar select { padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; }
-        .form-adicionar button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        /* --- Estilos de Layout --- */
+        .usuarios-container { max-width: 1200px; margin: 30px auto; padding: 20px; }
+
+        .form-adicionar { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px;
+
+             margin-bottom: 30px; 
+        }
+        /* Layout de grid para o novo formulário de 5 campos */
+        .form-adicionar form { 
+            display: grid; 
+            grid-template-columns: repeat(5, 1fr); /* 5 colunas */
+            gap: 10px; 
+            align-items: center; 
+        }
+        .form-adicionar input, 
+        .form-adicionar select { 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            width: 100%; 
+            box-sizing: border-box; 
+        }
+        .form-adicionar button { 
+            background-color: #007bff; 
+            color: white; 
+            padding: 10px 15px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer;
+            grid-column: span 1; /* Ocupa uma coluna */
+        }
         .form-adicionar button:hover { background-color: #0056b3; }
+
+        /* --- Estilos da Bandeira/Nacionalidade --- */
+        .flag-option {
+            display: flex;
+            align-items: center;
+        }
+        .flag-icon {
+            margin-right: 5px;
+            font-size: 1.2em;
+        }
         
+        /* --- Estilos da Tabela --- */
         table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background-color: #007bff; color: white; }
@@ -28,26 +68,53 @@
         <h2>Gerenciamento de Usuários</h2>
         <nav>
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
-            <a href="#" class="active">Usuários</a>
+            <a href="{{ url_for('gerenciar_usuarios') }}" class="active">Usuários</a>
             <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>
     </header>
 
     <main class="usuarios-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages" style="margin-bottom: 20px;">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         {% if niveis_permitidos %}
         <div class="form-adicionar">
             <h4>Adicionar Novo Usuário</h4>
-            <form action="{{ url_for('adicionar_usuario') }}" method="POST" style="display: flex; align-items: center; gap: 10px;">
-                <input type="text" name="novo_usuario" placeholder="Nome de Usuário" required>
-                <input type="password" name="nova_senha" placeholder="Senha Temporária" required>
-                <select name="nivel_acesso" required>
+            <form action="{{ url_for('adicionar_usuario') }}" method="POST">
+                                <input type="text" name="nome_completo" placeholder="Nome Completo" required>
+                
+                                <input type="text" name="usuario" placeholder="Usuário (login)" required>
+                
+                                <input type="password" name="nova_senha" placeholder="Senha Desejada" required>
+
+                                <input type="date" name="data_nascimento" placeholder="DD-MM-AAAA" required>
+
+                                <select name="nacionalidade" required>
+                    <option value="">Nacionalidade</option>
+                    <option value="BR">🇧🇷 Brasil (BR)</option>
+                    <option value="AR">🇦🇷 Argentina (AR)</option>
+                    <option value="PY">🇵🇾 Paraguai (PY)</option>
+                    <option value="US">🇺🇸 Estados Unidos (US)</option>
+                    <option value="OT">Outra</option>
+                </select>
+                
+                                <select name="nivel_acesso" required>
                     <option value="">Nível de Acesso</option>
                     {% for nivel in niveis_permitidos %}
                     <option value="{{ nivel }}">{{ nivel | upper }}</option>
                     {% endfor %}
                 </select>
-                <button type="submit">Adicionar</button>
+                
+                                <button type="submit" style="grid-column: span 2;">Adicionar</button>
             </form>
+            
             {% if nivel_logado == 'admin' %}
                 <p style="margin-top: 10px; font-size: 0.9em;">* Limite de 5 Técnicos. Você pode adicionar Técnicos e Enfermeiros.</p>
             {% endif %}
@@ -59,7 +126,10 @@
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Nome Completo</th>
                     <th>Usuário</th>
+                    <th>Nacionalidade</th>
+                    <th>Data Nasc.</th>
                     <th>Nível de Acesso</th>
                     <th>Ações</th>
                 </tr>
@@ -68,7 +138,10 @@
                 {% for user in usuarios %}
                 <tr>
                     <td>{{ user.id }}</td>
+                    <td>{{ user.nome_completo }}</td>
                     <td>{{ user.usuario }}</td>
+                    <td>{{ user.nacionalidade }}</td>
+                    <td>{{ user.data_nascimento }}</td>
                     <td>
                         <span class="nivel-{{ user.nivel_acesso }}">{{ user.nivel_acesso | upper }}</span>
                     </td>
