@@ -4,19 +4,6 @@
     <meta charset="UTF-8">
     <title>Prova de Vida | Sinais Vitais</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <style>
-        /* Estilos específicos */
-        .pv-container { max-width: 700px; margin: 30px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
-        .pv-container h3 { color: #20b2aa; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 30px; }
-        .form-row { display: flex; gap: 20px; margin-bottom: 15px; }
-        .form-row > .form-group { flex: 1; }
-        .form-group label { font-weight: bold; margin-bottom: 5px; display: block; color: #333; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .input-with-unit { display: flex; align-items: center; }
-        .input-with-unit input { flex: 1; margin-right: 5px; }
-        .input-with-unit span { font-weight: bold; color: #666; width: 40px; text-align: left; }
-    </style>
 </head>
 <body>
     <header class="main-header">
@@ -103,14 +90,6 @@
         </form>
     </main>
 
-    <script>
-        // CORREÇÃO: Função JavaScript para preencher o campo datetime-local com a data/hora atual
-        document.addEventListener('DOMContentLoaded', function() {
-            var now = new Date();
-            // Formato YYYY-MM-DDTHH:mm
-            var localDatetime = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().substring(0, 16);
-            document.getElementById('data_hora').value = localDatetime;
-        });
-    </script>
+    <script src="{{ url_for('static', filename='js/prova_vida.js') }}"></script>
 </body>
 </html>

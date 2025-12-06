@@ -4,65 +4,7 @@
     <meta charset="UTF-8">
     <title>Gerenciamento de Usuários</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <style>
-        /* --- Estilos de Layout --- */
-        .usuarios-container { max-width: 1200px; margin: 30px auto; padding: 20px; }
-
-        .form-adicionar { 
-            background: #f8f9fa; 
-            padding: 20px; 
-            border: 1px solid #ddd; 
-            border-radius: 8px;
-
-             margin-bottom: 30px; 
-        }
-        /* Layout de grid para o novo formulário de 5 campos */
-        .form-adicionar form { 
-            display: grid; 
-            grid-template-columns: repeat(5, 1fr); /* 5 colunas */
-            gap: 10px; 
-            align-items: center; 
-        }
-        .form-adicionar input, 
-        .form-adicionar select { 
-            padding: 10px; 
-            border: 1px solid #ccc; 
-            border-radius: 4px; 
-            width: 100%; 
-            box-sizing: border-box; 
-        }
-        .form-adicionar button { 
-            background-color: #007bff; 
-            color: white; 
-            padding: 10px 15px; 
-            border: none; 
-            border-radius: 4px; 
-            cursor: pointer;
-            grid-column: span 1; /* Ocupa uma coluna */
-        }
-        .form-adicionar button:hover { background-color: #0056b3; }
-
-        /* --- Estilos da Bandeira/Nacionalidade --- */
-        .flag-option {
-            display: flex;
-            align-items: center;
-        }
-        .flag-icon {
-            margin-right: 5px;
-            font-size: 1.2em;
-        }
-        
-        /* --- Estilos da Tabela --- */
-        table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #007bff; color: white; }
-        .nivel-admin { color: #dc3545; font-weight: bold; }
-        .nivel-tecnico { color: #ffc107; font-weight: bold; }
-        .nivel-enfermeiro { color: #28a745; }
-        .btn-excluir { background-color: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
-    </style>
-</head>
+    </head>
 <body>
     <header class="main-header">
         <h2>Gerenciamento de Usuários</h2>
@@ -88,15 +30,15 @@
         <div class="form-adicionar">
             <h4>Adicionar Novo Usuário</h4>
             <form action="{{ url_for('adicionar_usuario') }}" method="POST">
-                                <input type="text" name="nome_completo" placeholder="Nome Completo" required>
+                <input type="text" name="nome_completo" placeholder="Nome Completo" required>
                 
-                                <input type="text" name="usuario" placeholder="Usuário (login)" required>
+                <input type="text" name="usuario" placeholder="Usuário (login)" required>
                 
-                                <input type="password" name="nova_senha" placeholder="Senha Desejada" required>
+                <input type="password" name="nova_senha" placeholder="Senha Desejada" required>
 
-                                <input type="date" name="data_nascimento" placeholder="DD-MM-AAAA" required>
+                <input type="date" name="data_nascimento" required>
 
-                                <select name="nacionalidade" required>
+                <select name="nacionalidade" required>
                     <option value="">Nacionalidade</option>
                     <option value="BR">🇧🇷 Brasil (BR)</option>
                     <option value="AR">🇦🇷 Argentina (AR)</option>
@@ -106,14 +48,14 @@
                     <option value="OT">Outra</option>
                 </select>
                 
-                                <select name="nivel_acesso" required>
+                <select name="nivel_acesso" required>
                     <option value="">Nível de Acesso</option>
                     {% for nivel in niveis_permitidos %}
                     <option value="{{ nivel }}">{{ nivel | upper }}</option>
                     {% endfor %}
                 </select>
                 
-                                <button type="submit" style="grid-column: span 2;">Adicionar</button>
+                <button type="submit" style="grid-column: span 2;">Adicionar</button>
             </form>
             
             {% if nivel_logado == 'admin' %}
