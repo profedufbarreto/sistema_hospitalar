@@ -42,11 +42,11 @@
             </thead>
             <tbody>
                 {% for paciente in pacientes %}
-                <tr data-nome="{{ paciente.nome_paciente | lower }}">
+                <tr data-nome="{{ paciente.nome | lower }}">
                     <td>{{ paciente.id }}</td>
-                    <td>{{ paciente.nome_paciente }}</td>
+                    <td>{{ paciente.nome }}</td>
                     <td>{{ paciente.data_nascimento }}</td>
-                    <td>{{ paciente.hora_entrada }}</td>
+                    <td>{{ paciente.data_entrada }}</td>
                     <td>
                         <a href="{{ url_for('prova_vida', paciente_id=paciente.id) }}" class="btn-action-pequeno btn-add-pv">
                             ➕ Prova de Vida

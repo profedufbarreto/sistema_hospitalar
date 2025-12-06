@@ -11,6 +11,8 @@ from pymysql import IntegrityError # Importa para tratar erro de usuário duplic
 # Função auxiliar para criar a conexão, usando DictCursor por padrão para facilitar
 # Assumimos que create_db_connection (em database.py) aceita o argumento cursor_factory
 def get_db_connection(cursor_factory=pymysql.cursors.DictCursor):
+    # 'create_db_connection' deve ser implementada para aceitar o cursor_factory
+    # Aqui, garantimos que DictCursor é o padrão, a menos que seja sobrescrito.
     return create_db_connection(cursor_factory)
 
 # Decorator para exigir login
@@ -174,8 +176,9 @@ def salvar_prontuario():
 
         data_entrada_mysql = dados['hora_entrada'].replace('T', ' ')
         
+        # CORREÇÃO: O nome do paciente no formulário (dados['nome_paciente']) é salvo na coluna 'nome' da tabela Pacientes.
         cursor.execute(sql_paciente, (
-            dados['nome_paciente'], 
+            dados['nome_paciente'], # Corrigido: Usando a chave do formulário para o nome
             data_nascimento_mysql, 
             dados['cep'], 
             f"{dados['endereco']}, {dados['numero']}",
@@ -250,8 +253,9 @@ def pacientes():
     if conn:
         try:
             # Consulta pacientes internados
+            # A consulta usa a coluna 'nome'
             sql = "SELECT id, nome, data_nascimento, data_entrada FROM Pacientes WHERE status = 'internado' ORDER BY nome"
-            # get_db_connection já retorna DictCursor
+            # get_db_connection já retorna DictCursor, as chaves serão 'id', 'nome', 'data_nascimento', 'data_entrada'
             cursor = conn.cursor()
             cursor.execute(sql)
             pacientes_internados = cursor.fetchall()
@@ -261,7 +265,7 @@ def pacientes():
         finally:
             conn.close()
             
-    # Renderiza a nova página
+    # Renderiza a nova página, o template deve usar paciente.nome e paciente.data_entrada
     return render_template('pacientes.html', pacientes=pacientes_internados)
 
 # ------------------------------------------------------------------------------
