@@ -14,6 +14,18 @@
         .form-group label { font-weight: bold; margin-bottom: 5px; display: block;}
         .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .checkbox-sn { display: flex; align-items: center; gap: 10px; }
+        .action-buttons { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; }
+        /* Estilo para o botão de Prova de Vida */
+        .btn-prova-vida { 
+            background-color: #28a745; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            text-decoration: none; /* Para usar como link */
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -91,13 +103,20 @@
             </div>
 
             <div class="form-group">
-                <label>Medicamento Tomado na Entrada:</label>
+                <label>Medicamento Tomado na Entrada (ou prescrito):</label>
                 <div class="form-row">
                     <div class="form-group" style="flex: 2;">
                         <select id="medicamento_entrada" name="medicamento_entrada">
                             <option value="">Nenhum/Não Aplicável</option>
+                            <option value="Dipirona">Dipirona (Analgesia)</option>
+                            <option value="Dramin">Dramin (Náusea/Vômito)</option>
+                            <option value="Omeprazol">Omeprazol (Proteção Gástrica)</option>
+                            <option value="Soro Fisiológico">Soro Fisiológico 0.9% (Hidratação)</option>
+                            
                             {% for med in medicamentos %}
-                                <option value="{{ med.nome_medicamento }}">{{ med.nome_medicamento }}</option>
+                                {% if med.nome_medicamento not in ['Dipirona', 'Dramin', 'Omeprazol', 'Soro Fisiológico'] %}
+                                    <option value="{{ med.nome_medicamento }}">{{ med.nome_medicamento }}</option>
+                                {% endif %}
                             {% endfor %}
                             <option value="outro">Outro (Especifique abaixo)</option>
                         </select>
@@ -118,7 +137,12 @@
                 </div>
             </div>
             
-            <button type="submit" class="btn-login" style="margin-top: 20px;">Registrar Prontuário</button>
+            <div class="action-buttons">
+                <button type="submit" class="btn-login">Registrar Novo Prontuário</button>
+                <a href="{{ url_for('prova_vida') }}" class="btn-prova-vida">
+                    ➕ Adicionar Prova de Vida
+                </a>
+            </div>
         </form>
     </main>
 
@@ -128,6 +152,32 @@
         document.getElementById('medicamento_entrada').addEventListener('change', function() {
             var display = this.value === 'outro' ? 'block' : 'none';
             document.getElementById('outro_medicamento_group').style.display = display;
+        });
+
+        // Lógica de Preenchimento Automático do CEP (Se for implementado em cep_autofill.js)
+        document.addEventListener('DOMContentLoaded', function() {
+            var cepInput = document.getElementById('cep');
+            if (cepInput) {
+                cepInput.addEventListener('blur', function() {
+                    // Remove caracteres não numéricos
+                    var cep = this.value.replace(/\D/g, '');
+                    if (cep.length === 8) {
+                        fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (!("erro" in data)) {
+                                    document.getElementById('endereco').value = data.logradouro || '';
+                                    document.getElementById('bairro').value = data.bairro || '';
+                                    document.getElementById('cidade_uf').value = `${data.localidade} / ${data.uf}` || '';
+                                    document.getElementById('numero').focus(); // Foca no número após preenchimento
+                                } else {
+                                    alert("CEP não encontrado.");
+                                }
+                            })
+                            .catch(error => console.error('Erro ao buscar CEP:', error));
+                    }
+                });
+            }
         });
     </script>
 </body>
