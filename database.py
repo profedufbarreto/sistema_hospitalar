@@ -1,24 +1,20 @@
 import pymysql
 from werkzeug.security import generate_password_hash
 
-# Nenhuma mágica de sys.modules ou importação dupla. Apenas PyMySQL.
-
 # --- CONFIGURAÇÕES DE CONEXÃO ---
-# ATENÇÃO: Substitua 'SUA_SENHA_AQUI_123' pela senha REAL do usuário.
+# ATENÇÃO: Verifique se a senha 'root' é a correta para o seu ambiente MySQL.
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "flask_user",  
-    "password": "SUA_SENHA_AQUI_123", 
+    "host": "127.0.0.1", # Alterado para 127.0.0.1
+    "user": "root",     # Alterado para root
+    "password": "root", # <--- SENHA REAL DO SEU USUÁRIO ROOT
     "database": "prontuario_hospitalar"
 }
 
 def create_db_connection():
     """Tenta estabelecer e retornar uma conexão com o banco de dados."""
     try:
-        # **AQUI USAMOS PYMYSQL DIRETAMENTE**
         conn = pymysql.connect(**DB_CONFIG)
         return conn
-    # Usamos a exceção MySQLError nativa do PyMySQL
     except pymysql.err.MySQLError as err:
         print(f"❌ Erro ao conectar ao MySQL: {err}")
         print("Verifique se o MySQL Server está rodando e se as credenciais (host, user, password) estão corretas.")
@@ -44,7 +40,6 @@ def setup_database():
         cursor.close()
         conn.close()
         print(f"✅ Banco de dados '{db_name}' verificado/criado.")
-    # Usamos a exceção MySQLError nativa do PyMySQL
     except pymysql.err.MySQLError as err:
         print(f"❌ Erro na criação do DB ou conexão inicial: {err}")
         return
@@ -152,5 +147,5 @@ def setup_database():
     cursor.close()
     conn.close()
     
-if __name__ == '__main__':
-    setup_database()
+# Removida a chamada if __name__ == '__main__': setup_database() daqui
+# para evitar que o script database.py seja executado duas vezes.

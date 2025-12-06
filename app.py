@@ -1,12 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-from database import create_db_connection # <--- Isso já está correto
-# ... (o resto do app.py)
-
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-from database import create_db_connection
+# CORREÇÃO 1: Importa a função setup_database para inicialização
+from database import create_db_connection, setup_database 
 from datetime import datetime
 # Importa funções de segurança do próprio Flask (Werkzeug)
 from werkzeug.security import generate_password_hash, check_password_hash
+# CORREÇÃO 2: Importa o módulo de cursores para usar DictCursor
+import pymysql.cursors 
 
 app = Flask(__name__)
 # Chave secreta é OBRIGATÓRIA para usar sessões
@@ -32,7 +31,8 @@ def login():
         if conn is None:
             return render_template('login.html', erro='Erro de conexão com o banco de dados.')
             
-        cursor = conn.cursor(dictionary=True)
+        # CORREÇÃO 3: Usando DictCursor do PyMySQL
+        cursor = conn.cursor(pymysql.cursors.DictCursor) 
         
         # 1. BUSCA O USUÁRIO PELO NOME
         sql = "SELECT * FROM Usuarios WHERE usuario = %s"
@@ -76,27 +76,44 @@ def dashboard():
     }
     
     if conn:
-        cursor = conn.cursor()
+        # Cursor padrão é suficiente, pois está usando fetchone()[0]
+        cursor = conn.cursor() 
         
         try:
             # 1. TOTAL DE PACIENTES INTERNADOS
             cursor.execute("SELECT COUNT(*) FROM Pacientes WHERE status = 'internado'")
-            dados_dashboard['total_internados'] = cursor.fetchone()[0]
+            count_internados = cursor.fetchone()[0]
+            dados_dashboard['total_internados'] = count_internados
+            
+            # *** DEBUG: O que o Flask está lendo para Internados ***
+            print(f"DEBUG SQL: Internados = {count_internados}") 
+            # ******************************************************
             
             # 2. ALTAS NOS ÚLTIMOS 7 DIAS
             cursor.execute("SELECT COUNT(*) FROM Pacientes WHERE status = 'alta' AND data_baixa >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")
-            dados_dashboard['altas_ultimos_7_dias'] = cursor.fetchone()[0]
+            count_altas = cursor.fetchone()[0]
+            dados_dashboard['altas_ultimos_7_dias'] = count_altas
+            
+            # *** DEBUG: O que o Flask está lendo para Altas ***
+            print(f"DEBUG SQL: Altas = {count_altas}") 
+            # **************************************************
             
             # 3. ITENS COM BAIXO ESTOQUE (Exemplo: quantidade < 10)
             cursor.execute("SELECT COUNT(*) FROM Estoque WHERE quantidade < 10")
-            dados_dashboard['baixo_estoque'] = cursor.fetchone()[0]
+            count_estoque = cursor.fetchone()[0]
+            dados_dashboard['baixo_estoque'] = count_estoque
+            
+            # *** DEBUG: O que o Flask está lendo para Estoque Crítico ***
+            print(f"DEBUG SQL: Estoque Crítico = {count_estoque}") 
+            # ************************************************************
 
             # 4. PROVAS DE VIDA REGISTRADAS NAS ÚLTIMAS 24H
             cursor.execute("SELECT COUNT(*) FROM ProvasDeVida WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)")
             dados_dashboard['provas_vida_ultimas_24h'] = cursor.fetchone()[0]
             
         except Exception as e:
-            print(f"Erro ao buscar dados do dashboard: {e}")
+            # Se a conexão falhar, o erro será impresso.
+            print(f"Erro CRÍTICO ao buscar dados do dashboard: {e}")
         finally:
             cursor.close()
             conn.close()
@@ -122,7 +139,8 @@ def prontuario():
     conn = create_db_connection()
     medicamentos = []
     if conn:
-        cursor = conn.cursor(dictionary=True)
+        # CORREÇÃO 4: Usando DictCursor do PyMySQL
+        cursor = conn.cursor(pymysql.cursors.DictCursor) 
         cursor.execute("SELECT nome_medicamento FROM Estoque WHERE quantidade > 0 ORDER BY nome_medicamento")
         medicamentos = cursor.fetchall()
         cursor.close()
@@ -240,7 +258,8 @@ def estoque():
     conn = create_db_connection()
     itens_estoque = []
     if conn:
-        cursor = conn.cursor(dictionary=True)
+        # CORREÇÃO 5: Usando DictCursor do PyMySQL
+        cursor = conn.cursor(pymysql.cursors.DictCursor) 
         cursor.execute("SELECT * FROM Estoque ORDER BY nome_medicamento")
         itens_estoque = cursor.fetchall()
         cursor.close()
@@ -312,7 +331,8 @@ def prova_vida():
     conn = create_db_connection()
     pacientes_internados = []
     if conn:
-        cursor = conn.cursor(dictionary=True)
+        # CORREÇÃO 6: Usando DictCursor do PyMySQL
+        cursor = conn.cursor(pymysql.cursors.DictCursor) 
         cursor.execute("SELECT id, nome FROM Pacientes WHERE status = 'internado' ORDER BY nome")
         pacientes_internados = cursor.fetchall()
         cursor.close()
@@ -383,7 +403,8 @@ def arquivo():
     conn = create_db_connection()
     pacientes_altas = []
     if conn:
-        cursor = conn.cursor(dictionary=True)
+        # CORREÇÃO 7: Usando DictCursor do PyMySQL
+        cursor = conn.cursor(pymysql.cursors.DictCursor) 
         cursor.execute("SELECT id, nome, data_entrada, data_baixa, procedimento FROM Pacientes WHERE status = 'alta' ORDER BY data_baixa DESC")
         pacientes_altas = cursor.fetchall()
         cursor.close()
@@ -431,7 +452,8 @@ def detalhes_prontuario(paciente_id):
     medicamentos_admin = []
     
     if conn:
-        cursor = conn.cursor(dictionary=True)
+        # CORREÇÃO 8: Usando DictCursor do PyMySQL
+        cursor = conn.cursor(pymysql.cursors.DictCursor) 
         
         # 1. Buscar Dados Detalhados do Paciente (Prontuário)
         cursor.execute("SELECT * FROM Pacientes WHERE id = %s", (paciente_id,))
@@ -468,7 +490,8 @@ def gerenciar_usuarios():
     conn = create_db_connection()
     usuarios = []
     if conn:
-        cursor = conn.cursor(dictionary=True)
+        # CORREÇÃO 9: Usando DictCursor do PyMySQL
+        cursor = conn.cursor(pymysql.cursors.DictCursor) 
         # Filtra a visualização para Técnicos (não podem ver outros Admins/Técnicos)
         if session['nivel'] == 'tecnico':
             # Técnico vê somente Enfermeiros
@@ -546,7 +569,8 @@ def excluir_usuario(user_id):
         
     conn = create_db_connection()
     if conn is None: return "Erro de conexão.", 500
-    cursor = conn.cursor(dictionary=True)
+    # CORREÇÃO 10: Usando DictCursor do PyMySQL
+    cursor = conn.cursor(pymysql.cursors.DictCursor) 
     
     # 1. Busca o nível do usuário a ser excluído para verificação
     cursor.execute("SELECT nivel_acesso FROM Usuarios WHERE id = %s", (user_id,))
@@ -586,4 +610,8 @@ def excluir_usuario(user_id):
 # ==============================================================================
 
 if __name__ == '__main__':
+    # CORREÇÃO 11: Chama a função de setup do banco de dados ANTES de iniciar o servidor
+    setup_database() 
+    
+    # CORREÇÃO 12: Inicia o servidor Flask
     app.run(debug=True)
