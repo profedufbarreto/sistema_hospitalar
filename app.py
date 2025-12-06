@@ -85,27 +85,21 @@ def dashboard():
             count_internados = cursor.fetchone()[0]
             dados_dashboard['total_internados'] = count_internados
             
-            # *** DEBUG: O que o Flask está lendo para Internados ***
-            print(f"DEBUG SQL: Internados = {count_internados}") 
-            # ******************************************************
+            # *** LINHAS DE DEBUG REMOVIDAS ***
             
             # 2. ALTAS NOS ÚLTIMOS 7 DIAS
             cursor.execute("SELECT COUNT(*) FROM Pacientes WHERE status = 'alta' AND data_baixa >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")
             count_altas = cursor.fetchone()[0]
             dados_dashboard['altas_ultimos_7_dias'] = count_altas
             
-            # *** DEBUG: O que o Flask está lendo para Altas ***
-            print(f"DEBUG SQL: Altas = {count_altas}") 
-            # **************************************************
+            # *** LINHAS DE DEBUG REMOVIDAS ***
             
             # 3. ITENS COM BAIXO ESTOQUE (Exemplo: quantidade < 10)
             cursor.execute("SELECT COUNT(*) FROM Estoque WHERE quantidade < 10")
             count_estoque = cursor.fetchone()[0]
             dados_dashboard['baixo_estoque'] = count_estoque
             
-            # *** DEBUG: O que o Flask está lendo para Estoque Crítico ***
-            print(f"DEBUG SQL: Estoque Crítico = {count_estoque}") 
-            # ************************************************************
+            # *** LINHAS DE DEBUG REMOVIDAS ***
 
             # 4. PROVAS DE VIDA REGISTRADAS NAS ÚLTIMAS 24H
             cursor.execute("SELECT COUNT(*) FROM ProvasDeVida WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)")
