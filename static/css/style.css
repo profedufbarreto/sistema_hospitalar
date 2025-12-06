@@ -1,15 +1,32 @@
-/* static/css/style.css */
+/* static/css/style.css - CORRIGIDO */
+
+/* --- CORREÇÃO: Remove a centralização global do body --- */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f0f2f5; /* Cor de fundo suave */
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    /* REMOVIDO: display: flex, justify-content, align-items */
     min-height: 100vh;
     margin: 0;
 }
 
+/* --- NOVO: Estilo para o Wrapper de Conteúdo Principal --- */
+/* Isso será usado para centralizar elementos que NÃO são o cabeçalho (ex: dashboard, formulários) */
+.content-wrapper {
+    padding: 20px; /* Espaçamento interno padrão */
+    max-width: 1200px; /* Largura máxima para conteúdo */
+    margin: 0 auto; /* Centraliza o wrapper na tela */
+    width: 100%;
+}
+
+/* --- Estilo Específico para o Container de LOGIN (MANTIDO) --- */
 .login-container {
+    /* ADICIONADO: Centraliza APENAS o container de login */
+    position: absolute; /* Coloca acima do fluxo */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    /* FIM: Centralização ADICIONADA */
+    
     background-color: #ffffff;
     padding: 40px;
     border-radius: 12px;
@@ -20,10 +37,12 @@ body {
 }
 
 .login-container h1 {
-    color: #007bff; /* Cor principal (azul hospitalar) */
+    color: #007bff;
     margin-bottom: 30px;
     font-size: 1.8em;
 }
+
+/* ... (Resto do CSS de login: form-group, input, btn-login) ... */
 
 .form-group {
     margin-bottom: 20px;
@@ -43,7 +62,7 @@ body {
     padding: 12px;
     border: 1px solid #ccc;
     border-radius: 6px;
-    box-sizing: border-box; /* Garante que o padding não aumente a largura total */
+    box-sizing: border-box;
     transition: border-color 0.3s;
 }
 
@@ -53,7 +72,7 @@ body {
 }
 
 .btn-login {
-    background-color: #28a745; /* Cor de ação (verde) */
+    background-color: #28a745;
     color: white;
     border: none;
     padding: 12px 20px;
@@ -69,7 +88,7 @@ body {
 }
 
 .error-message {
-    color: #dc3545; /* Cor de erro (vermelho) */
+    color: #dc3545;
     margin-top: -10px;
     margin-bottom: 15px;
     font-weight: bold;

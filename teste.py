@@ -1,1 +1,0 @@
-﻿print('Python está funcionando!')
