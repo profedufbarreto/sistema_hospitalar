@@ -90,9 +90,21 @@
                 <textarea id="observacoes" name="observacoes" rows="3"></textarea>
             </div>
 
-            <button type="submit" class="btn-login" style="margin-top: 20px; background-color: #20b2aa;">Registrar Prova de Vida</button>
+            <div class="action-buttons" style="margin-top: 20px; justify-content: space-between;">
+                <a href="{{ url_for('detalhes_prontuario', paciente_id=paciente.id) }}" 
+                   class="btn-logout" 
+                   style="width: 45%; background-color: #6c757d;">
+                    Cancelar / Voltar
+                </a>
+                
+                <button type="submit" 
+                        class="btn-login" 
+                        style="width: 45%; background-color: #20b2aa;">
+                    Registrar Prova de Vida
+                </button>
+            </div>
         </form>
     </main>
 
-    </body>
+</body>
 </html>

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Detalhes do Prontuário | {{ paciente.nome }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    </head>
+</head>
 <body>
     <header class="main-header">
         <h2>Prontuário Arquivado: {{ paciente.nome }}</h2>
@@ -14,14 +14,44 @@
     </header>
 
     <main class="detalhes-container">
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if paciente.status == 'internado' and session.get('nivel') in ['admin', 'tecnico'] %}
+        <div class="action-buttons" style="justify-content: flex-end; margin-bottom: 20px;">
+            <a href="{{ url_for('alta_form', paciente_id=paciente.id) }}" 
+               class="btn-logout" 
+               style="background-color: #dc3545; color: white;">
+                Registrar Alta Médica
+            </a>
+        </div>
+        {% endif %}
         <h3 class="section-header">Dados do Paciente e Internação</h3>
+        
         <div class="data-item"><strong>Nome:</strong> {{ paciente.nome }}</div>
         <div class="data-item"><strong>Nascimento:</strong> {{ paciente.data_nascimento.strftime('%d/%m/%Y') }}</div>
+        
+        <div class="data-item"><strong>Usuário da Internação:</strong> {{ paciente.usuario_internacao | default('N/A') }}</div>
+        
         <div class="data-item"><strong>Entrada:</strong> {{ paciente.data_entrada.strftime('%d/%m/%Y %H:%M') }}</div>
-        <div class="data-item"><strong>Alta (Baixa):</strong> {{ paciente.data_baixa.strftime('%d/%m/%Y') if paciente.data_baixa else 'PENDENTE' }}</div>
-        <div class="data-item"><strong>Profissional de Baixa:</strong> {{ paciente.nome_baixa }}</div>
+        
+        <div class="data-item"><strong>Alta (Baixa):</strong> {{ paciente.data_baixa.strftime('%d/%m/%Y %H:%M') if paciente.data_baixa else 'PENDENTE' }}</div>
+        <div class="data-item"><strong>Profissional de Baixa:</strong> {{ paciente.nome_baixa | default('None') }}</div>
+        
         <div class="data-item"><strong>Endereço:</strong> {{ paciente.endereco }}, {{ paciente.bairro }} (CEP: {{ paciente.cep }})</div>
-        <div class="data-item"><strong>Procedimento/Motivo:</strong> {{ paciente.procedimento }}</div>
+        
+        <div class="data-item procedimento-data-item">
+            <strong>Procedimento/Motivo:</strong> 
+            <span class="procedimento-texto">{{ paciente.procedimento }}</span>
+        </div>
 
         <h3 class="section-header" style="border-bottom-color: #28a745;">Histórico de Provas de Vida ({{ provas_vida | length }} Registros)</h3>
         
@@ -31,7 +61,7 @@
             <div class="prova-vida-item">
                 <div class="pv-data">
                     <span>📅 **Data/Hora:** {{ pv.data_hora.strftime('%d/%m/%Y %H:%M') }}</span>
-                    <span>👨‍⚕️ **Efetuado por:** {{ pv.quem_efetuou }}</span>
+                    <span>👨‍⚕️ **Efetuado por:** {{ pv.quem_efetuou | default('N/A') }}</span>
                     <span>🩸 **PA:** {{ pv.pressao_arterial }} mmHg</span>
                     <span>❤️ **FC:** {{ pv.batimentos_cardiacos }} bpm</span>
                     <span>🦠 **Glicose:** {{ pv.glicose if pv.glicose else 'N/A' }} mg/dL</span>

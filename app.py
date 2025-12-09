@@ -65,6 +65,8 @@ def login():
             # 2. CHECA O HASH DA SENHA E DEFINE A SESSÃO
             session['usuario'] = user['usuario']
             session['nivel'] = user['nivel_acesso']
+            # Armazena o ID do usuário na sessão para referência futura, se necessário
+            session['usuario_id'] = user['id'] 
             return redirect(url_for('dashboard'))
         else:
             return render_template('login.html', erro='Usuário ou senha inválidos.')
@@ -155,6 +157,9 @@ def prontuario():
 @login_required
 def salvar_prontuario():
     dados = request.form
+    # NOVO: Captura o usuário logado para registrar a internação
+    usuario_internacao = session.get('usuario') 
+    
     # CORRIGIDO: Usando get_db_connection() para inserção (cursor padrão)
     conn = get_db_connection(pymysql.cursors.Cursor) 
     if conn is None:
@@ -164,9 +169,10 @@ def salvar_prontuario():
 
     try:
         # 1. SALVAR DADOS DO PACIENTE
+        # ATUALIZADO: Adicionada a coluna 'usuario_internacao'
         sql_paciente = """
-        INSERT INTO Pacientes (nome, data_nascimento, cep, endereco, bairro, data_entrada, procedimento, status)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, 'internado')
+        INSERT INTO Pacientes (nome, data_nascimento, cep, endereco, bairro, data_entrada, procedimento, status, usuario_internacao)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, 'internado', %s)
         """
         # Trata a conversão de data
         try:
@@ -184,7 +190,8 @@ def salvar_prontuario():
             f"{dados['endereco']}, {dados['numero']}",
             dados['bairro'], 
             data_entrada_mysql,
-            dados['procedimento']
+            dados['procedimento'],
+            usuario_internacao # NOVO CAMPO
         ))
         
         paciente_id = cursor.lastrowid
@@ -269,12 +276,12 @@ def pacientes():
     return render_template('pacientes.html', pacientes=pacientes_internados)
 
 # ------------------------------------------------------------------------------
-# 📑 ROTA DE DETALHES UNIFICADA (PACIENTE_DETALHES)
+# 📑 ROTA DE DETALHES UNIFICADA (DETALHES_PRONTUARIO) - RENOMEADA E PADRONIZADA
 # ------------------------------------------------------------------------------
 
 @app.route('/paciente/detalhes/<int:paciente_id>')
 @login_required
-def paciente_detalhes(paciente_id):
+def detalhes_prontuario(paciente_id): # <-- ESTE É O NOME DO ENDPOINT CORRETO
     conn = get_db_connection() # Usando get_db_connection (DictCursor)
     paciente = None
     provas_vida = []
@@ -285,6 +292,7 @@ def paciente_detalhes(paciente_id):
         
         try:
             # 1. Buscar Dados Detalhados do Paciente (Prontuário)
+            # ATUALIZADO: Garante que o campo 'usuario_internacao' é buscado
             cursor.execute("SELECT * FROM Pacientes WHERE id = %s", (paciente_id,))
             paciente = cursor.fetchone()
             
@@ -351,6 +359,9 @@ def prova_vida(paciente_id):
     # Caso POST: Salva a nova prova de vida
     elif request.method == 'POST':
         dados = request.form
+        # NOVO: Captura o usuário logado para registrar a prova de vida
+        quem_efetuou_val = session.get('usuario', 'Desconhecido') 
+        
         # CORRIGIDO: Usando get_db_connection com cursor padrão para inserção
         conn = get_db_connection(pymysql.cursors.Cursor) 
         if conn is None:
@@ -382,13 +393,14 @@ def prova_vida(paciente_id):
                 glicose_val, 
                 saturacao_val,
                 batimentos_val,
-                dados['quem_efetuou'],
+                quem_efetuou_val, # USANDO USUÁRIO DA SESSÃO
                 dados['observacoes']
             ))
             
             conn.commit()
             flash('Prova de vida registrada com sucesso!', 'success')
-            return redirect(url_for('paciente_detalhes', paciente_id=paciente_id)) # Volta para os detalhes do paciente
+            # CORRIGIDO: Redireciona para o endpoint RENOMEADO
+            return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id)) 
             
         except Exception as e:
             conn.rollback()
@@ -490,6 +502,38 @@ def conversor():
 # 🗄️ MÓDULO ARQUIVO (ALTAS)
 # ==============================================================================
 
+# NOVO: Rota para exibir o formulário de alta
+@app.route('/paciente/alta_form/<int:paciente_id>')
+@login_required
+def alta_form(paciente_id):
+    if session.get('nivel') not in ['admin', 'tecnico']:
+        flash("Acesso Negado: Apenas Admin/Técnicos podem dar alta.", 'danger')
+        # CORRIGIDO: Redireciona para o endpoint RENOMEADO
+        return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id)) 
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 1. Busca os dados essenciais do paciente
+    cursor.execute("SELECT id, nome, data_entrada, status FROM Pacientes WHERE id = %s", (paciente_id,))
+    paciente = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not paciente or paciente['status'] != 'internado':
+        flash("Paciente não encontrado ou já recebeu alta.", 'danger')
+        return redirect(url_for('pacientes'))
+
+    # Passa a data/hora atual como padrão para o campo datetime-local (YYYY-MM-DDTHH:MM)
+    agora = datetime.now().strftime('%Y-%m-%dT%H:%M')
+    
+    return render_template(
+        'alta_form.html',
+        paciente=paciente,
+        agora=agora,
+        usuario_logado=session['usuario']
+    )
+    
 @app.route('/arquivo')
 @login_required
 def arquivo():
@@ -497,44 +541,56 @@ def arquivo():
     pacientes_altas = []
     if conn:
         cursor = conn.cursor() # DictCursor
-        cursor.execute("SELECT id, nome, data_entrada, data_baixa, procedimento FROM Pacientes WHERE status = 'alta' ORDER BY data_baixa DESC")
+        # ATUALIZADO: Inclui nome_baixa para exibição no arquivo
+        cursor.execute("SELECT id, nome, data_entrada, data_baixa, nome_baixa, procedimento FROM Pacientes WHERE status = 'alta' ORDER BY data_baixa DESC")
         pacientes_altas = cursor.fetchall()
         cursor.close()
         conn.close()
         
     return render_template('arquivo.html', pacientes=pacientes_altas, mensagem=request.args.get('mensagem'))
     
+# ATUALIZADO: Rota para processar a alta (agora recebe data/hora do formulário)
 @app.route('/paciente/alta/<int:paciente_id>', methods=['POST'])
 @login_required
 def dar_alta(paciente_id):
     if session.get('nivel') not in ['admin', 'tecnico']:
         flash("Acesso Negado: Permissão restrita a Admin e Técnico.", 'danger')
-        return redirect(url_for('pacientes'))
+        # CORRIGIDO: Redireciona para o endpoint RENOMEADO
+        return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id)) 
     
-    # CORRIGIDO: Usando get_db_connection com cursor padrão para inserção
+    dados = request.form
+    data_hora_alta = dados['data_hora_alta'] # Formato esperado: YYYY-MM-DDTHH:MM
+    
+    # CORRIGIDO: Usando get_db_connection com cursor padrão para atualização
     conn = get_db_connection(pymysql.cursors.Cursor) 
     if conn is None: return "Erro de conexão.", 500
     cursor = conn.cursor()
     
     try:
-        # ATUALIZA NOME_BAIXA E DATA_BAIXA
+        # 1. Trata a data/hora para o formato MySQL DATETIME
+        data_baixa_mysql = f"{data_hora_alta.replace('T', ' ')}:00"
+
+        # ATUALIZA NOME_BAIXA E DATA_BAIXA (agora com hora)
         usuario_baixa = session.get('usuario', 'N/A')
-        sql = "UPDATE Pacientes SET status = 'alta', data_baixa = CURDATE(), nome_baixa = %s WHERE id = %s AND status = 'internado'"
-        cursor.execute(sql, (usuario_baixa, paciente_id))
+        
+        sql = "UPDATE Pacientes SET status = 'alta', data_baixa = %s, nome_baixa = %s WHERE id = %s AND status = 'internado'"
+        cursor.execute(sql, (data_baixa_mysql, usuario_baixa, paciente_id))
         conn.commit()
         
         if cursor.rowcount > 0:
-            flash('Alta registrada e paciente arquivado com sucesso!', 'success')
+            flash(f'Alta registrada por {usuario_baixa} em {data_baixa_mysql}!', 'success')
             return redirect(url_for('arquivo'))
         else:
             flash("Erro: Paciente não encontrado ou já tinha alta.", 'danger')
-            return redirect(url_for('paciente_detalhes', paciente_id=paciente_id)) # Volta para os detalhes se der erro
+            # CORRIGIDO: Redireciona para o endpoint RENOMEADO
+            return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id))
             
     except Exception as e:
         conn.rollback()
         print(f"Erro ao registrar alta: {e}")
         flash(f"Erro interno: {e}", 'danger')
-        return redirect(url_for('paciente_detalhes', paciente_id=paciente_id))
+        # CORRIGIDO: Redireciona para o endpoint RENOMEADO
+        return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id))
     finally:
         cursor.close()
         conn.close()
@@ -575,7 +631,7 @@ def gerenciar_usuarios():
         finally:
             cursor.close()
             conn.close()
-        
+            
     # Define os níveis que o usuário logado pode criar
     niveis_permitidos = []
     if session['nivel'] == 'admin':

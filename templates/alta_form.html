@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Registrar Alta | {{ paciente.nome }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-body">
+    <div class="pv-container" style="max-width: 500px;"> 
+        <h3 style="color: #dc3545;">👋 Registrar Alta Médica</h3>
+        <p>Paciente: <strong>{{ paciente.nome }}</strong> (ID: {{ paciente.id }})</p>
+        <p>Internação desde: <strong>{{ paciente.data_entrada.strftime('%d/%m/%Y %H:%M') }}</strong></p>
+        <hr>
+        
+        <form method="POST" action="{{ url_for('dar_alta', paciente_id=paciente.id) }}">
+            
+            <div class="form-group">
+                <label for="data_hora_alta">Data e Hora da Alta:</label>
+                <input type="datetime-local" 
+                       id="data_hora_alta" 
+                       name="data_hora_alta" 
+                       value="{{ agora }}" 
+                       required>
+            </div>
+            
+            <div class="form-group">
+                <label>Profissional Responsável (Usuário Logado):</label>
+                <input type="text" value="{{ usuario_logado }}" disabled style="background-color: #eee;">
+            </div>
+            
+            <div class="form-row" style="margin-top: 30px; justify-content: space-between;">
+                <a href="{{ url_for('detalhes_prontuario', paciente_id=paciente.id) }}" 
+                   class="btn-logout" 
+                   style="width: 45%; background-color: #6c757d;">
+                    Cancelar
+                </a>
+                <button type="submit" 
+                        class="btn-login" 
+                        style="width: 45%; background-color: #dc3545;">
+                    ✅ Confirmar Alta
+                </button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

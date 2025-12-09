@@ -23,6 +23,16 @@
     </header>
 
     <main class="pacientes-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         <h3>Lista de Pacientes Internados</h3>
         
         <div class="search-bar">
@@ -47,13 +57,24 @@
                     <td>{{ paciente.nome }}</td>
                     <td>{{ paciente.data_nascimento }}</td>
                     <td>{{ paciente.data_entrada }}</td>
-                    <td>
-                        <a href="{{ url_for('prova_vida', paciente_id=paciente.id) }}" class="btn-action-pequeno btn-add-pv">
-                            ➕ Prova de Vida
+                    <td class="tabela-acoes">
+                        
+                        <a href="{{ url_for('prova_vida', paciente_id=paciente.id) }}" class="btn-action-pequeno btn-add-pv" style="background-color: #28a745;">
+                            ➕ PV
                         </a>
-                        <a href="{{ url_for('paciente_detalhes', paciente_id=paciente.id) }}" class="btn-action-pequeno btn-detalhes">
+                        
+                        <a href="{{ url_for('detalhes_prontuario', paciente_id=paciente.id) }}" class="btn-action-pequeno btn-detalhes">
                             Detalhes
                         </a>
+                        
+                        {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                        <a href="{{ url_for('alta_form', paciente_id=paciente.id) }}" 
+                           class="btn-action-pequeno" 
+                           style="background-color: #dc3545;">
+                            ❌ Alta
+                        </a>
+                        {% endif %}
+                        
                     </td>
                 </tr>
                 {% endfor %}

@@ -596,7 +596,7 @@ tr:hover {
 
 
 /* ========================================================= */
-/* 11. PÁGINA DE DETALHES */
+/* 11. PÁGINA DE DETALHES (detalhes_prontuario.html) */
 /* ========================================================= */
 
 .detalhes-container { 
@@ -618,13 +618,35 @@ tr:hover {
 .data-item { 
     margin-bottom: 10px; 
     line-height: 1.5;
+    display: flex; /* Adicionado para alinhar o strong e o valor */
 }
 
 .data-item strong { 
     display: inline-block; 
-    width: 150px; 
+    min-width: 150px; /* Garante alinhamento dos dois pontos */
     color: #333; 
 }
+
+/* NOVO ESTILO: Para o campo Procedimento/Motivo */
+/* Garante que o texto longo quebre corretamente */
+.procedimento-data-item {
+    display: block; /* Ocupa a largura total para permitir quebra de linha */
+}
+
+.procedimento-data-item strong {
+    display: inline-block; 
+    min-width: 150px;
+    margin-right: 5px; /* Pequeno espaço entre o label e o texto */
+}
+
+.procedimento-texto {
+    display: inline; /* Permite que o span comece logo após o strong */
+    white-space: normal; /* Permite a quebra de linha normal */
+    word-wrap: break-word; /* Força a quebra de palavras longas (ajuda na sobreposição) */
+    flex: 1; /* Ocupa o restante do espaço */
+}
+/* FIM NOVO ESTILO */
+
 
 /* Estilos para a lista de Prova de Vida no Detalhes */
 .prova-vida-list { 
@@ -688,4 +710,40 @@ tr:hover {
     font-size: 0.85em; 
     margin-right: 5px; 
     display: inline-block;
+}
+
+/* Removido o campo-procedimento, pois agora usamos procedimento-data-item e procedimento-texto */
+
+/* Em static/css/style.css */
+
+/* --- Estilos para Mensagens Flash --- */
+.flash-messages {
+    margin-bottom: 20px;
+}
+
+.alert {
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    font-weight: bold;
+    font-size: 0.95em;
+    border: 1px solid transparent;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border-color: #c3e6cb;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border-color: #ffeeba;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-color: #f5c6cb;
 }
