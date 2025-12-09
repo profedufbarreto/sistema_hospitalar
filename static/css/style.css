@@ -747,3 +747,97 @@ tr:hover {
     color: #721c24;
     border-color: #f5c6cb;
 }
+
+/* --- Dashboard Charts Layout (Adicione ao seu style.css) --- */
+
+.dashboard-visuals {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    margin-top: 30px;
+}
+
+.charts-row {
+    display: flex;
+    flex: 3; /* Ocupa a maior parte da largura */
+    gap: 20px;
+}
+
+.chart-half {
+    flex: 1;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    min-height: 350px;
+}
+
+.chart-half h3 {
+    text-align: center;
+    margin-top: 0;
+    font-size: 1.1em;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.info-painel {
+    flex: 1; /* O painel de informações ocupa 1/4 da largura */
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.info-block {
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.info-block h4 {
+    color: #20b2aa;
+    border-left: 4px solid #20b2aa;
+    padding-left: 10px;
+    margin-bottom: 10px;
+}
+
+.info-block ul {
+    list-style: none;
+    padding: 0;
+}
+
+.info-block ul li {
+    padding: 5px 0;
+    font-size: 0.95em;
+}
+
+.btn-full-width {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 8px;
+    text-align: center;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background-color 0.2s;
+    color: white;
+}
+/* Cores dos botões do painel */
+.info-block a[href*="prontuario"] { background-color: #007bff; }
+.info-block a[href*="estoque"] { background-color: #ffc107; color: #333; }
+.info-block a[href*="estoque"]:hover { background-color: #e0a800; }
+.info-block a[href*="prontuario"]:hover { background-color: #0056b3; }
+
+
+/* Responsividade básica */
+@media (max-width: 992px) {
+    .dashboard-visuals, .charts-row {
+        flex-direction: column;
+    }
+
+    .charts-row, .chart-half, .info-painel {
+        flex: none;
+        width: 100%;
+    }
+}

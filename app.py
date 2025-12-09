@@ -80,7 +80,7 @@ def logout():
     return redirect(url_for('login'))
 
 # ==============================================================================
-# 📊 ROTA PRINCIPAL (DASHBOARD)
+# 📊 ROTA PRINCIPAL (DASHBOARD) - AGORA COM DADOS PARA GRÁFICOS
 # ==============================================================================
 
 @app.route('/dashboard')
@@ -91,7 +91,9 @@ def dashboard():
         'total_internados': 0,
         'altas_ultimos_7_dias': 0,
         'baixo_estoque': 0,
-        'provas_vida_ultimas_24h': 0
+        'provas_vida_ultimas_24h': 0,
+        'motivos_data': {'labels': [], 'data': []}, # NOVO: Dados para gráfico de motivos
+        'dias_data': {'labels': [], 'data': []}     # NOVO: Dados para gráfico de dias médios
     }
     
     if conn:
@@ -99,28 +101,65 @@ def dashboard():
         cursor = conn.cursor() 
         
         try:
-            # 1. TOTAL DE PACIENTES INTERNADOS
+            # 1. KPIs
             cursor.execute("SELECT COUNT(*) FROM Pacientes WHERE status = 'internado'")
-            # fetchone() retorna um dicionário com DictCursor, precisamos do valor
             dados_dashboard['total_internados'] = list(cursor.fetchone().values())[0] 
             
-            # 2. ALTAS NOS ÚLTIMOS 7 DIAS
             cursor.execute("SELECT COUNT(*) FROM Pacientes WHERE status = 'alta' AND data_baixa >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")
             dados_dashboard['altas_ultimos_7_dias'] = list(cursor.fetchone().values())[0]
             
-            # 3. ITENS COM BAIXO ESTOQUE (Exemplo: quantidade < 10)
-            cursor.execute("SELECT COUNT(*) FROM Estoque WHERE quantidade < 10")
+            # Usando < 100 para ser um critério mais visível
+            cursor.execute("SELECT COUNT(*) FROM Estoque WHERE quantidade < 100") 
             dados_dashboard['baixo_estoque'] = list(cursor.fetchone().values())[0]
 
-            # 4. PROVAS DE VIDA REGISTRADAS NAS ÚLTIMAS 24H
             cursor.execute("SELECT COUNT(*) FROM ProvasDeVida WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)")
             dados_dashboard['provas_vida_ultimas_24h'] = list(cursor.fetchone().values())[0]
             
+            # 2. DADOS PARA GRÁFICO DE MOTIVOS (Motivos mais comuns)
+            sql_motivos = """
+            SELECT 
+                procedimento, 
+                COUNT(*) as total 
+            FROM Pacientes 
+            GROUP BY procedimento 
+            ORDER BY total DESC 
+            LIMIT 5
+            """
+            cursor.execute(sql_motivos)
+            motivos = cursor.fetchall()
+            
+            # Prepara os dados para o JS: Trunca labels longas
+            dados_dashboard['motivos_data']['labels'] = [m['procedimento'][:20] + '...' if len(m['procedimento']) > 20 else m['procedimento'] for m in motivos]
+            dados_dashboard['motivos_data']['data'] = [m['total'] for m in motivos]
+            
+            # 3. DADOS PARA GRÁFICO DE DIAS MÉDIOS DE INTERNAÇÃO (Por profissional de baixa/alta)
+            sql_dias = """
+            SELECT 
+                nome_baixa,
+                AVG(TIMESTAMPDIFF(DAY, data_entrada, data_baixa)) as media_dias 
+            FROM Pacientes 
+            WHERE status = 'alta' AND nome_baixa IS NOT NULL
+            GROUP BY nome_baixa 
+            HAVING media_dias IS NOT NULL
+            ORDER BY media_dias DESC 
+            LIMIT 5
+            """
+            cursor.execute(sql_dias)
+            dias_medios = cursor.fetchall()
+            
+            # Prepara os dados para o JS: Arredonda os dias médios
+            dados_dashboard['dias_data']['labels'] = [d['nome_baixa'] for d in dias_medios]
+            dados_dashboard['dias_data']['data'] = [round(float(d['media_dias']), 1) for d in dias_medios]
+            
         except Exception as e:
             print(f"Erro CRÍTICO ao buscar dados do dashboard: {e}")
+            # Em caso de erro, garante que os dados do gráfico estejam vazios para evitar quebrar o JS
+            dados_dashboard['motivos_data'] = {'labels': [], 'data': []}
+            dados_dashboard['dias_data'] = {'labels': [], 'data': []}
         finally:
-            cursor.close()
-            conn.close()
+            if conn:
+                cursor.close()
+                conn.close()
             
     return render_template(
         'dashboard.html', 

@@ -25,11 +25,76 @@
             <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>
     </header>
+    
     <main class="dashboard-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         <section class="kpi-cards">
             <div class="card card-internados">
-                <h4>Internados Atuais</h4>
-                <p class="kpi-value" id="total-internados">{{ dados.total_internados }}</p> 
+                <h4>🩺 Internados Atuais</h4>
+                <p class="kpi-value">{{ dados.total_internados }}</p> 
+            </div>
+            
+            <div class="card card-altas">
+                <h4>✅ Altas (Últimos 7 dias)</h4>
+                <p class="kpi-value">{{ dados.altas_ultimos_7_dias }}</p> 
+            </div>
+
+            <div class="card card-estoque">
+                <h4>📦 Baixo Estoque (< 100 un)</h4>
+                <p class="kpi-value {% if dados.baixo_estoque > 0 %}kpi-alerta{% endif %}">
+                    {{ dados.baixo_estoque }}
+                </p> 
+            </div>
+
+            <div class="card card-pv">
+                <h4>❤️ Provas de Vida (24h)</h4>
+                <p class="kpi-value">{{ dados.provas_vida_ultimas_24h }}</p> 
+            </div>
+        </section>
+
+        <hr>
+
+        <section class="dashboard-visuals">
+            
+            <div class="chart-container">
+                <h3>Top 5 Medicamentos Administrados (Quantidade)</h3>
+                <canvas id="medicamentosChart"></canvas>
+                <p class="chart-info">* Quantidade total de cada medicamento administrada a todos os pacientes (internados ou com alta).</p>
+            </div>
+            
+            <div class="info-painel">
+                <h3>Painel de Auditoria e Status</h3>
+                
+                <div class="info-block">
+                    <h4>Próximos Passos</h4>
+                    <ul>
+                        <li><a href="{{ url_for('pacientes') }}">Revisar Sinais Vitais (PV)</a></li>
+                        {% if dados.total_internados > 0 %}
+                            <li><a href="{{ url_for('pacientes') }}">Gerenciar Altas Pendentes</a></li>
+                        {% else %}
+                            <li>Nenhuma alta pendente.</li>
+                        {% endif %}
+                        {% if dados.baixo_estoque > 0 %}
+                            <li style="color: #dc3545;">⚠️ <a href="{{ url_for('estoque') }}">Reabastecer {{ dados.baixo_estoque }} itens em baixo estoque!</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <div class="info-block">
+                    <h4>Acesso Rápido</h4>
+                    <a href="{{ url_for('prontuario') }}" class="btn-full-width">➕ Registrar Nova Internação</a>
+                    <a href="{{ url_for('estoque') }}" class="btn-full-width">📦 Gerenciar Estoque</a>
+                </div>
+                
             </div>
         </section>
 
