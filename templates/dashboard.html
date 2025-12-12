@@ -64,7 +64,7 @@
 
         <hr>
 
-        <section class="charts-full-width">
+                <section class="charts-full-width">
             <div class="chart-container">
                 <div class="chart-header">
                     <h3>Movimentação de Pacientes (Entradas vs. Altas)</h3>
@@ -82,8 +82,14 @@
             
             <div class="charts-analysis">
                 <div class="chart-half">
-                    <h3>Top 5 Motivos de Internação</h3>
+                                        <div class="chart-header" style="flex-direction: column; align-items: flex-start;">
+                        <h3>Motivos de Internação</h3>
+                        <p style="font-size: 0.8em; color: #666; margin-top: 5px;">Selecione os motivos para comparar:</p>
+                        <select id="motivosFilter" multiple size="4" style="width: 100%; min-height: 80px; font-size: 0.9em; margin-top: 5px;">
+                            </select>
+                    </div>
                     <canvas id="motivosChart"></canvas>
+                    <p id="motivosMessage" style="text-align: center; color: #777; margin-top: 10px; display: none;"></p>
                 </div>
                 
                 <div class="chart-half">
@@ -115,13 +121,13 @@
                     <a href="{{ url_for('prontuario') }}" class="btn-full-width" style="background-color: #007bff;">➕ Registrar Nova Internação</a>
                     <a href="{{ url_for('estoque') }}" class="btn-full-width" style="background-color: #ffc107;">📦 Gerenciar Estoque</a>
                 </div>
-                
             </div>
         </section>
 
     </main>
     
     <script>
+        // Corrigido para incluir 'todos_motivos' nos dados, embora o Python agora o faça.
         const FLASK_DASHBOARD_DATA = {{ dados|tojson }};
     </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

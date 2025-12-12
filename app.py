@@ -9,10 +9,7 @@ import pymysql.cursors
 from pymysql import IntegrityError # Importa para tratar erro de usuário duplicado
 
 # Função auxiliar para criar a conexão, usando DictCursor por padrão para facilitar
-# Assumimos que create_db_connection (em database.py) aceita o argumento cursor_factory
 def get_db_connection(cursor_factory=pymysql.cursors.DictCursor):
-    # 'create_db_connection' deve ser implementada para aceitar o cursor_factory
-    # Aqui, garantimos que DictCursor é o padrão, a menos que seja sobrescrito.
     return create_db_connection(cursor_factory)
 
 # Decorator para exigir login
@@ -46,14 +43,12 @@ def login():
         usuario = request.form['usuario']
         senha = request.form['senha']
         
-        # CORRIGIDO: Usando get_db_connection() para garantir DictCursor
         conn = get_db_connection()
         if conn is None:
             return render_template('login.html', erro='Erro de conexão com o banco de dados.')
             
         cursor = conn.cursor() 
         
-        # 1. BUSCA O USUÁRIO PELO NOME
         sql = "SELECT * FROM Usuarios WHERE usuario = %s"
         cursor.execute(sql, (usuario,))
         user = cursor.fetchone()
@@ -62,10 +57,8 @@ def login():
         conn.close()
         
         if user and check_password_hash(user['senha'], senha):
-            # 2. CHECA O HASH DA SENHA E DEFINE A SESSÃO
             session['usuario'] = user['usuario']
             session['nivel'] = user['nivel_acesso']
-            # Armazena o ID do usuário na sessão para referência futura, se necessário
             session['usuario_id'] = user['id'] 
             return redirect(url_for('dashboard'))
         else:
@@ -80,29 +73,28 @@ def logout():
     return redirect(url_for('login'))
 
 # ==============================================================================
-# 📊 ROTA PRINCIPAL (DASHBOARD) - AGORA COM DADOS PARA GRÁFICOS
+# 📊 ROTA PRINCIPAL (DASHBOARD) - AGORA COM DADOS COMPLETOS PARA FILTRO DE MOTIVOS
 # ==============================================================================
 
 @app.route('/dashboard')
-@login_required # Garante que só usuários logados acessem
+@login_required
 def dashboard():
     conn = get_db_connection()
-    current_year = datetime.now().year # Obtém o ano atual
+    current_year = datetime.now().year
     
     dados_dashboard = {
         'total_internados': 0,
         'altas_ultimos_7_dias': 0,
         'baixo_estoque': 0,
         'provas_vida_ultimas_24h': 0,
-        'motivos_data': {'labels': [], 'data': []}, 
+        'todos_motivos': [], # NOVO: Armazena todos os motivos para o JS filtrar
+        'motivos_data': {'labels': [], 'data': []}, # Mantido, mas preenchido no JS
         'dias_data': {'labels': [], 'data': []},     
-        # NOVOS DADOS TEMPORAIS:
         'movimentacao_mensal': {'labels': [], 'entradas': [], 'altas': []},
         'movimentacao_anual': {'labels': [], 'entradas': [], 'altas': []}
     }
     
     if conn:
-        # Usa o cursor padrão (DictCursor) da get_db_connection
         cursor = conn.cursor() 
         
         try:
@@ -119,22 +111,19 @@ def dashboard():
             cursor.execute("SELECT COUNT(*) FROM ProvasDeVida WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)")
             dados_dashboard['provas_vida_ultimas_24h'] = list(cursor.fetchone().values())[0]
             
-            # 2. DADOS PARA GRÁFICO DE MOTIVOS (Rosca)
+            # 2. DADOS PARA FILTRO DE MOTIVOS (Sem LIMIT)
             sql_motivos = """
             SELECT 
                 procedimento, 
                 COUNT(*) as total 
             FROM Pacientes 
             GROUP BY procedimento 
+            HAVING procedimento IS NOT NULL AND procedimento != ''
             ORDER BY total DESC 
-            LIMIT 5
             """
             cursor.execute(sql_motivos)
-            motivos = cursor.fetchall()
-            
-            # Prepara os dados para o JS: Trunca labels longas
-            dados_dashboard['motivos_data']['labels'] = [m['procedimento'][:20] + '...' if len(m['procedimento']) > 20 else m['procedimento'] for m in motivos]
-            dados_dashboard['motivos_data']['data'] = [m['total'] for m in motivos]
+            # Armazena TODOS os motivos brutos para o JS
+            dados_dashboard['todos_motivos'] = cursor.fetchall() 
             
             # 3. DADOS PARA GRÁFICO DE DIAS MÉDIOS DE INTERNAÇÃO (Barras)
             sql_dias = """
@@ -151,12 +140,10 @@ def dashboard():
             cursor.execute(sql_dias)
             dias_medios = cursor.fetchall()
             
-            # Prepara os dados para o JS: Arredonda os dias médios
             dados_dashboard['dias_data']['labels'] = [d['nome_baixa'] for d in dias_medios]
             dados_dashboard['dias_data']['data'] = [round(float(d['media_dias']), 1) for d in dias_medios]
             
-            # 4. NOVO: MOVIMENTAÇÃO MENSAL (Entradas e Saídas no ANO ATUAL)
-            # Entrada por Mês
+            # 4. MOVIMENTAÇÃO MENSAL
             sql_entradas_mensal = f"""
             SELECT MONTH(data_entrada) as mes, COUNT(*) as entradas
             FROM Pacientes
@@ -166,7 +153,6 @@ def dashboard():
             cursor.execute(sql_entradas_mensal)
             entradas_mensal = {item['mes']: item['entradas'] for item in cursor.fetchall()}
 
-            # Alta por Mês
             sql_altas_mensal = f"""
             SELECT MONTH(data_baixa) as mes, COUNT(*) as altas
             FROM Pacientes
@@ -176,7 +162,6 @@ def dashboard():
             cursor.execute(sql_altas_mensal)
             altas_mensal = {item['mes']: item['altas'] for item in cursor.fetchall()}
 
-            # Cria listas ordenadas de 1 a 12 para o JS
             nomes_meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
             
             for mes_num in range(1, 13):
@@ -185,7 +170,7 @@ def dashboard():
                 dados_dashboard['movimentacao_mensal']['altas'].append(altas_mensal.get(mes_num, 0))
 
 
-            # 5. NOVO: MOVIMENTAÇÃO ANUAL (Últimos 5 Anos)
+            # 5. MOVIMENTAÇÃO ANUAL
             sql_movimentacao_anual = f"""
             SELECT 
                 YEAR(data_entrada) as ano, 
@@ -214,7 +199,7 @@ def dashboard():
         except Exception as e:
             conn.rollback()
             print(f"Erro CRÍTICO ao buscar dados do dashboard: {e}")
-            # Em caso de erro, garante que os dados do gráfico estejam vazios para evitar quebrar o JS
+            dados_dashboard['todos_motivos'] = []
             dados_dashboard['motivos_data'] = {'labels': [], 'data': []}
             dados_dashboard['dias_data'] = {'labels': [], 'data': []}
             dados_dashboard['movimentacao_mensal'] = {'labels': [], 'entradas': [], 'altas': []}
@@ -242,7 +227,6 @@ def prontuario():
     conn = get_db_connection()
     medicamentos = []
     if conn:
-        # get_db_connection já retorna DictCursor
         cursor = conn.cursor() 
         cursor.execute("SELECT nome_medicamento FROM Estoque WHERE quantidade > 0 ORDER BY nome_medicamento")
         medicamentos = cursor.fetchall()
@@ -259,10 +243,8 @@ def prontuario():
 @login_required
 def salvar_prontuario():
     dados = request.form
-    # NOVO: Captura o usuário logado para registrar a internação
     usuario_internacao = session.get('usuario') 
     
-    # CORRIGIDO: Usando get_db_connection() para inserção (cursor padrão)
     conn = get_db_connection(pymysql.cursors.Cursor) 
     if conn is None:
         return "Erro de conexão com o banco de dados.", 500
@@ -270,13 +252,10 @@ def salvar_prontuario():
     cursor = conn.cursor()
 
     try:
-        # 1. SALVAR DADOS DO PACIENTE
-        # ATUALIZADO: Adicionada a coluna 'usuario_internacao'
         sql_paciente = """
         INSERT INTO Pacientes (nome, data_nascimento, cep, endereco, bairro, data_entrada, procedimento, status, usuario_internacao)
         VALUES (%s, %s, %s, %s, %s, %s, %s, 'internado', %s)
         """
-        # Trata a conversão de data
         try:
             data_nascimento_mysql = datetime.strptime(dados['data_nascimento'], '%Y-%m-%d').date()
         except ValueError:
@@ -284,21 +263,19 @@ def salvar_prontuario():
 
         data_entrada_mysql = dados['hora_entrada'].replace('T', ' ')
         
-        # CORREÇÃO: O nome do paciente no formulário (dados['nome_paciente']) é salvo na coluna 'nome' da tabela Pacientes.
         cursor.execute(sql_paciente, (
-            dados['nome_paciente'], # Corrigido: Usando a chave do formulário para o nome
+            dados['nome_paciente'], 
             data_nascimento_mysql, 
             dados['cep'], 
             f"{dados['endereco']}, {dados['numero']}",
             dados['bairro'], 
             data_entrada_mysql,
             dados['procedimento'],
-            usuario_internacao # NOVO CAMPO
+            usuario_internacao
         ))
         
         paciente_id = cursor.lastrowid
 
-        # 2. SALVAR ADMINISTRAÇÃO DE MEDICAMENTO INICIAL E BAIXA DE ESTOQUE
         medicamento = dados.get('medicamento_entrada')
         medicamento_nome = None
         
@@ -306,12 +283,10 @@ def salvar_prontuario():
             medicamento_nome = medicamento
         elif medicamento == 'outro' and dados.get('outro_medicamento_nome'):
             medicamento_nome = dados['outro_medicamento_nome']
-            # Adiciona o novo medicamento ao estoque com quantidade inicial zero, se não existir
             cursor.execute("INSERT IGNORE INTO Estoque (nome_medicamento, quantidade, unidade, data_ultima_entrada) VALUES (%s, 0, 'UN', NOW())", (medicamento_nome,))
 
 
         if medicamento_nome:
-            # Tenta converter a dose para float, evitando ValueError se o campo estiver vazio ou for inválido
             try:
                 dose = float(dados.get('dose') or 0.0) 
             except ValueError:
@@ -330,7 +305,6 @@ def salvar_prontuario():
                 data_entrada_mysql
             ))
             
-            # Baixa de Estoque
             if dose > 0:
                 sql_baixa = "UPDATE Estoque SET quantidade = GREATEST(quantidade - %s, 0) WHERE nome_medicamento = %s"
                 cursor.execute(sql_baixa, (dose, medicamento_nome))
@@ -357,14 +331,11 @@ def salvar_prontuario():
 @app.route('/pacientes')
 @login_required
 def pacientes():
-    conn = get_db_connection() # Usando get_db_connection
+    conn = get_db_connection()
     pacientes_internados = []
     if conn:
         try:
-            # Consulta pacientes internados
-            # A consulta usa a coluna 'nome'
             sql = "SELECT id, nome, data_nascimento, data_entrada FROM Pacientes WHERE status = 'internado' ORDER BY nome"
-            # get_db_connection já retorna DictCursor, as chaves serão 'id', 'nome', 'data_nascimento', 'data_entrada'
             cursor = conn.cursor()
             cursor.execute(sql)
             pacientes_internados = cursor.fetchall()
@@ -374,7 +345,6 @@ def pacientes():
         finally:
             conn.close()
             
-    # Renderiza a nova página, o template deve usar paciente.nome e paciente.data_entrada
     return render_template('pacientes.html', pacientes=pacientes_internados)
 
 # ------------------------------------------------------------------------------
@@ -383,26 +353,22 @@ def pacientes():
 
 @app.route('/paciente/detalhes/<int:paciente_id>')
 @login_required
-def detalhes_prontuario(paciente_id): # <-- ESTE É O NOME DO ENDPOINT CORRETO
-    conn = get_db_connection() # Usando get_db_connection (DictCursor)
+def detalhes_prontuario(paciente_id):
+    conn = get_db_connection()
     paciente = None
     provas_vida = []
     medicamentos_admin = []
     
     if conn:
-        cursor = conn.cursor() # DictCursor
+        cursor = conn.cursor()
         
         try:
-            # 1. Buscar Dados Detalhados do Paciente (Prontuário)
-            # ATUALIZADO: Garante que o campo 'usuario_internacao' é buscado
             cursor.execute("SELECT * FROM Pacientes WHERE id = %s", (paciente_id,))
             paciente = cursor.fetchone()
             
-            # 2. Buscar todas as Provas de Vida
             cursor.execute("SELECT * FROM ProvasDeVida WHERE paciente_id = %s ORDER BY data_hora DESC", (paciente_id,))
             provas_vida = cursor.fetchall()
             
-            # 3. Buscar Histórico de Medicamentos
             cursor.execute("SELECT * FROM AdministracaoMedicamentos WHERE paciente_id = %s ORDER BY data_hora DESC", (paciente_id,))
             medicamentos_admin = cursor.fetchall()
         
@@ -427,15 +393,13 @@ def detalhes_prontuario(paciente_id): # <-- ESTE É O NOME DO ENDPOINT CORRETO
 # ❤️ MÓDULO PROVA DE VIDA
 # ==============================================================================
 
-# Rota de Prova de Vida com parâmetro paciente_id
 @app.route('/prova_vida/<int:paciente_id>', methods=('GET', 'POST'))
 @login_required
 def prova_vida(paciente_id):
-    conn = get_db_connection() # Usando get_db_connection (DictCursor)
+    conn = get_db_connection()
     paciente = None
     
     if conn:
-        # 1. Busca o paciente pelo ID
         cursor = conn.cursor()
         cursor.execute("SELECT id, nome FROM Pacientes WHERE id = %s", (paciente_id,))
         paciente = cursor.fetchone()
@@ -444,11 +408,9 @@ def prova_vida(paciente_id):
         
     if not paciente:
         flash(f"Paciente com ID {paciente_id} não encontrado.", 'danger')
-        return redirect(url_for('pacientes')) # Redireciona para a lista se o ID for inválido
+        return redirect(url_for('pacientes'))
 
-    # Caso GET: Exibe o formulário
     if request.method == 'GET':
-        # Passa a data/hora atual como padrão para os campos (YYYY-MM-DDTHH:MM)
         agora = datetime.now().strftime('%Y-%m-%dT%H:%M')
         
         return render_template(
@@ -458,13 +420,10 @@ def prova_vida(paciente_id):
             usuario_logado=session['usuario']
         )
     
-    # Caso POST: Salva a nova prova de vida
     elif request.method == 'POST':
         dados = request.form
-        # NOVO: Captura o usuário logado para registrar a prova de vida
         quem_efetuou_val = session.get('usuario', 'Desconhecido') 
         
-        # CORRIGIDO: Usando get_db_connection com cursor padrão para inserção
         conn = get_db_connection(pymysql.cursors.Cursor) 
         if conn is None:
             return "Erro de conexão com o banco de dados.", 500
@@ -478,30 +437,27 @@ def prova_vida(paciente_id):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """
             
-            # Combina Data e Hora do formulário (que agora virão separadamente)
-            data_pv = dados['data_pv'] # YYYY-MM-DD
-            hora_pv = dados['hora_pv'] # HH:MM
-            data_hora_mysql = f"{data_pv} {hora_pv}:00" # Formato MySQL: YYYY-MM-DD HH:MM:SS
+            data_pv = dados['data_pv']
+            hora_pv = dados['hora_pv']
+            data_hora_mysql = f"{data_pv} {hora_pv}:00"
             
-            # Garante que os campos numéricos vazios sejam None (para o MySQL)
             glicose_val = dados['glicose'] if dados['glicose'] else None
             saturacao_val = dados['saturacao'] if dados['saturacao'] else None
             batimentos_val = dados['batimentos_cardiacos'] if dados['batimentos_cardiacos'] else None
             
             cursor.execute(sql, (
-                paciente_id, # Usando o ID da URL
+                paciente_id,
                 data_hora_mysql,
                 dados['pressao_arterial'], 
                 glicose_val, 
                 saturacao_val,
                 batimentos_val,
-                quem_efetuou_val, # USANDO USUÁRIO DA SESSÃO
+                quem_efetuou_val,
                 dados['observacoes']
             ))
             
             conn.commit()
             flash('Prova de vida registrada com sucesso!', 'success')
-            # CORRIGIDO: Redireciona para o endpoint RENOMEADO
             return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id)) 
             
         except Exception as e:
@@ -513,11 +469,9 @@ def prova_vida(paciente_id):
             cursor.close()
             conn.close()
 
-# Rota para o módulo de Prova de Vida genérico (MANTIDO, mas deve ser removido ou alterado no futuro)
 @app.route('/prova_vida')
 @login_required
 def prova_vida_antiga():
-    # Esta rota agora redireciona para a nova lista, incentivando o uso do link via Pacientes
     flash("Selecione um paciente internado para registrar a Prova de Vida.", 'info')
     return redirect(url_for('pacientes'))
 
@@ -533,10 +487,10 @@ def estoque():
         flash("Acesso Negado: Permissão restrita a Admin e Técnico.", 'danger')
         return redirect(url_for('dashboard'))
 
-    conn = get_db_connection() # CORRIGIDO: Usando get_db_connection()
+    conn = get_db_connection()
     itens_estoque = []
     if conn:
-        cursor = conn.cursor() # DictCursor
+        cursor = conn.cursor()
         cursor.execute("SELECT * FROM Estoque ORDER BY nome_medicamento")
         itens_estoque = cursor.fetchall()
         cursor.close()
@@ -553,7 +507,6 @@ def salvar_estoque():
     dados = request.form
     nome = dados['nome'].strip()
     
-    # Tratamento de erro para garantir que a quantidade seja um número válido
     try:
         quantidade = int(dados['quantidade'])
     except ValueError:
@@ -562,18 +515,15 @@ def salvar_estoque():
         
     unidade = dados['unidade']
     
-    # CORRIGIDO: Usando get_db_connection com cursor padrão para inserção
     conn = get_db_connection(pymysql.cursors.Cursor) 
     if conn is None: return "Erro de conexão.", 500
     cursor = conn.cursor()
     
     try:
-        # Verifica se existe, se existir, atualiza (adiciona), se não, insere
         sql_update = "UPDATE Estoque SET quantidade = quantidade + %s, unidade = %s, data_ultima_entrada = NOW() WHERE nome_medicamento = %s"
         cursor.execute(sql_update, (quantidade, unidade, nome))
         
         if cursor.rowcount == 0:
-            # Não existe, então insere um novo
             sql_insert = "INSERT INTO Estoque (nome_medicamento, quantidade, unidade, data_ultima_entrada) VALUES (%s, %s, %s, NOW())"
             cursor.execute(sql_insert, (nome, quantidade, unidade))
             
@@ -604,19 +554,16 @@ def conversor():
 # 🗄️ MÓDULO ARQUIVO (ALTAS)
 # ==============================================================================
 
-# NOVO: Rota para exibir o formulário de alta
 @app.route('/paciente/alta_form/<int:paciente_id>')
 @login_required
 def alta_form(paciente_id):
     if session.get('nivel') not in ['admin', 'tecnico']:
         flash("Acesso Negado: Apenas Admin/Técnicos podem dar alta.", 'danger')
-        # CORRIGIDO: Redireciona para o endpoint RENOMEADO
         return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id)) 
         
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. Busca os dados essenciais do paciente
     cursor.execute("SELECT id, nome, data_entrada, status FROM Pacientes WHERE id = %s", (paciente_id,))
     paciente = cursor.fetchone()
     cursor.close()
@@ -626,7 +573,6 @@ def alta_form(paciente_id):
         flash("Paciente não encontrado ou já recebeu alta.", 'danger')
         return redirect(url_for('pacientes'))
 
-    # Passa a data/hora atual como padrão para o campo datetime-local (YYYY-MM-DDTHH:MM)
     agora = datetime.now().strftime('%Y-%m-%dT%H:%M')
     
     return render_template(
@@ -639,11 +585,10 @@ def alta_form(paciente_id):
 @app.route('/arquivo')
 @login_required
 def arquivo():
-    conn = get_db_connection() # CORRIGIDO: Usando get_db_connection()
+    conn = get_db_connection()
     pacientes_altas = []
     if conn:
-        cursor = conn.cursor() # DictCursor
-        # ATUALIZADO: Inclui nome_baixa para exibição no arquivo
+        cursor = conn.cursor()
         cursor.execute("SELECT id, nome, data_entrada, data_baixa, nome_baixa, procedimento FROM Pacientes WHERE status = 'alta' ORDER BY data_baixa DESC")
         pacientes_altas = cursor.fetchall()
         cursor.close()
@@ -651,28 +596,23 @@ def arquivo():
         
     return render_template('arquivo.html', pacientes=pacientes_altas, mensagem=request.args.get('mensagem'))
     
-# ATUALIZADO: Rota para processar a alta (agora recebe data/hora do formulário)
 @app.route('/paciente/alta/<int:paciente_id>', methods=['POST'])
 @login_required
 def dar_alta(paciente_id):
     if session.get('nivel') not in ['admin', 'tecnico']:
         flash("Acesso Negado: Permissão restrita a Admin e Técnico.", 'danger')
-        # CORRIGIDO: Redireciona para o endpoint RENOMEADO
         return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id)) 
     
     dados = request.form
-    data_hora_alta = dados['data_hora_alta'] # Formato esperado: YYYY-MM-DDTHH:MM
+    data_hora_alta = dados['data_hora_alta']
     
-    # CORRIGIDO: Usando get_db_connection com cursor padrão para atualização
     conn = get_db_connection(pymysql.cursors.Cursor) 
     if conn is None: return "Erro de conexão.", 500
     cursor = conn.cursor()
     
     try:
-        # 1. Trata a data/hora para o formato MySQL DATETIME
         data_baixa_mysql = f"{data_hora_alta.replace('T', ' ')}:00"
 
-        # ATUALIZA NOME_BAIXA E DATA_BAIXA (agora com hora)
         usuario_baixa = session.get('usuario', 'N/A')
         
         sql = "UPDATE Pacientes SET status = 'alta', data_baixa = %s, nome_baixa = %s WHERE id = %s AND status = 'internado'"
@@ -684,14 +624,12 @@ def dar_alta(paciente_id):
             return redirect(url_for('arquivo'))
         else:
             flash("Erro: Paciente não encontrado ou já tinha alta.", 'danger')
-            # CORRIGIDO: Redireciona para o endpoint RENOMEADO
             return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id))
             
     except Exception as e:
         conn.rollback()
         print(f"Erro ao registrar alta: {e}")
         flash(f"Erro interno: {e}", 'danger')
-        # CORRIGIDO: Redireciona para o endpoint RENOMEADO
         return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id))
     finally:
         cursor.close()
@@ -709,20 +647,17 @@ def gerenciar_usuarios():
         flash("Acesso Negado: Permissão restrita a Administradores e Técnicos.", 'danger')
         return redirect(url_for('dashboard'))
 
-    conn = get_db_connection() # Usando get_db_connection (DictCursor)
+    conn = get_db_connection()
     usuarios = []
     if conn:
-        cursor = conn.cursor() # DictCursor
+        cursor = conn.cursor()
         
         try:
-            # 🚀 CORRIGIDO: Inclui nome_completo, data_nascimento e nacionalidade
             sql_base = "SELECT id, nome_completo, usuario, data_nascimento, nivel_acesso, nacionalidade FROM Usuarios"
             
-            # Filtra a visualização para Técnicos (não podem ver outros Admins/Técnicos)
             if session['nivel'] == 'tecnico':
-                # Técnico vê somente Enfermeiros
                 sql = f"{sql_base} WHERE nivel_acesso = 'enfermeiro' ORDER BY usuario"
-            else: # Admin vê todos
+            else:
                 sql = f"{sql_base} ORDER BY nivel_acesso DESC, usuario"
                 
             cursor.execute(sql)
@@ -734,7 +669,6 @@ def gerenciar_usuarios():
             cursor.close()
             conn.close()
             
-    # Define os níveis que o usuário logado pode criar
     niveis_permitidos = []
     if session['nivel'] == 'admin':
         niveis_permitidos = ['tecnico', 'enfermeiro']
@@ -756,22 +690,18 @@ def adicionar_usuario():
 
     dados = request.form
     
-    # 🚨 NOVOS CAMPOS CAPTURADOS: nome_completo, data_nascimento e nacionalidade
     nome_completo = dados['nome_completo'].strip()
-    data_nascimento_form = dados['data_nascimento'] # YYYY-MM-DD
+    data_nascimento_form = dados['data_nascimento']
     nacionalidade = dados['nacionalidade'].strip()
-    # ----------------------------------
     
     novo_usuario = dados['usuario'].strip()
     nova_senha = dados['nova_senha']
     nivel_novo = dados['nivel_acesso']
 
-    # CORRIGIDO: Usando get_db_connection com cursor padrão para inserção
     conn = get_db_connection(pymysql.cursors.Cursor) 
     if conn is None: return "Erro de conexão.", 500
     cursor = conn.cursor()
 
-    # 1. VERIFICAÇÃO DE HIERARQUIA E LIMITES
     if session['nivel'] == 'tecnico' and nivel_novo != 'enfermeiro':
         flash("Acesso Negado: Técnicos só podem adicionar Enfermeiros.", 'danger')
         conn.close()
@@ -785,7 +715,6 @@ def adicionar_usuario():
             conn.close()
             return redirect(url_for('gerenciar_usuarios'))
 
-    # 2. TRATAMENTO DA DATA DE NASCIMENTO (Convertendo 'AAAA-MM-DD' para o formato MySQL DATE)
     try:
         data_nascimento_mysql = datetime.strptime(data_nascimento_form, '%Y-%m-%d').date()
     except ValueError:
@@ -793,11 +722,9 @@ def adicionar_usuario():
         conn.close()
         return redirect(url_for('gerenciar_usuarios'))
         
-    # 3. INSERÇÃO DO NOVO USUÁRIO
     try:
         hashed_password = generate_password_hash(nova_senha) 
         
-        # 🚀 CORRIGIDO: Adicionada nacionalidade e nome_completo ao comando SQL
         sql = """
         INSERT INTO Usuarios (nome_completo, usuario, senha, data_nascimento, nivel_acesso, nacionalidade) 
         VALUES (%s, %s, %s, %s, %s, %s)
@@ -806,9 +733,9 @@ def adicionar_usuario():
             nome_completo,
             novo_usuario,
             hashed_password,
-            data_nascimento_mysql, # Já formatada como objeto date
+            data_nascimento_mysql,
             nivel_novo,
-            nacionalidade # NOVO CAMPO INSERIDO
+            nacionalidade
         ))
         conn.commit()
         flash(f"Usuário {novo_usuario} adicionado com sucesso!", 'success')
@@ -816,7 +743,6 @@ def adicionar_usuario():
         
     except IntegrityError:
         conn.rollback()
-        # Erro de integridade (usuário já existe)
         flash("Erro: O nome de usuário já existe.", 'danger')
         return redirect(url_for('gerenciar_usuarios'))
     except Exception as e:
@@ -835,12 +761,10 @@ def excluir_usuario(user_id):
         flash("Acesso Negado.", 'danger')
         return redirect(url_for('gerenciar_usuarios'))
         
-    # CORRIGIDO: Usando get_db_connection com cursor padrão para exclusão
     conn = get_db_connection(pymysql.cursors.Cursor) 
     if conn is None: return "Erro de conexão.", 500
-    cursor = conn.cursor(pymysql.cursors.DictCursor) # Usa DictCursor para buscar
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
     
-    # 1. Busca o nível do usuário a ser excluído para verificação
     cursor.execute("SELECT nivel_acesso FROM Usuarios WHERE id = %s", (user_id,))
     user_to_delete = cursor.fetchone()
     
@@ -851,11 +775,9 @@ def excluir_usuario(user_id):
         return redirect(url_for('gerenciar_usuarios'))
 
     nivel_deletado = user_to_delete['nivel_acesso']
-    # Fecha o cursor DictCursor e abre o padrão para DELETE
     cursor.close()
     cursor = conn.cursor() 
 
-    # 2. VERIFICAÇÃO DE HIERARQUIA
     if session['nivel'] == 'tecnico' and nivel_deletado != 'enfermeiro':
         flash("Acesso Negado: Técnicos só podem excluir usuários de nível Enfermeiro.", 'danger')
         conn.close()
@@ -866,7 +788,6 @@ def excluir_usuario(user_id):
         conn.close()
         return redirect(url_for('gerenciar_usuarios'))
 
-    # 3. EXCLUSÃO
     try:
         sql = "DELETE FROM Usuarios WHERE id = %s"
         cursor.execute(sql, (user_id,))
@@ -888,8 +809,5 @@ def excluir_usuario(user_id):
 # ==============================================================================
 
 if __name__ == '__main__':
-    # Chama a função de setup do banco de dados ANTES de iniciar o servidor
     setup_database() 
-    
-    # Inicia o servidor Flask
     app.run(debug=True)
