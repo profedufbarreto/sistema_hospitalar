@@ -2,16 +2,18 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Módulo Prontuário</title>
+    <title>Novo Prontuário | PEP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    
     <header class="main-header">
-        <h2>Módulo Prontuário</h2>
+        <h2>Registro de Nova Internação</h2>
         <nav>
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
             <a href="{{ url_for('prontuario') }}" class="active">Prontuário</a> 
-            <a href="{{ url_for('pacientes') }}">Pacientes</a> <a href="{{ url_for('estoque') }}">Estoque</a> 
+            <a href="{{ url_for('pacientes') }}">Pacientes</a> 
+            <a href="{{ url_for('estoque') }}">Estoque</a>
             <a href="{{ url_for('conversor') }}">Conversor</a> 
             <a href="{{ url_for('arquivo') }}">Arquivo</a> 
             {% if session.get('nivel') in ['admin', 'tecnico'] %}
@@ -20,109 +22,148 @@
             <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>
     </header>
-
-    <main class="prontuario-form-container">
-        <form action="{{ url_for('salvar_prontuario') }}" method="POST">
+    
+    <main class="content-wrapper">
+        <div class="prontuario-form-container">
             
-            <h3>Dados Pessoais e Entrada</h3>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="nome_paciente">Nome do Paciente:</label>
-                    <input type="text" id="nome_paciente" name="nome_paciente" required>
-                </div>
-                <div class="form-group">
-                    <label for="data_nascimento">Data de Nascimento (dd-mm-aaaa):</label>
-                    <input type="date" id="data_nascimento" name="data_nascimento" required>
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="hora_entrada">Hora de Entrada:</label>
-                    <input type="datetime-local" id="hora_entrada" name="hora_entrada" required>
-                </div>
-                <div class="form-group">
-                    <label for="quem_deu_baixa">Profissional de Baixa (Entrada):</label>
-                    <input type="text" id="quem_deu_baixa" name="quem_deu_baixa" value="{{ usuario }}" readonly>
-                </div>
-            </div>
-            
-            <h3>Endereço (Busca por CEP)</h3>
-            <div class="form-row">
-                <div class="form-group" style="flex: 0 0 30%;">
-                    <label for="cep">CEP:</label>
-                    <input type="text" id="cep" name="cep" maxlength="9" required> 
-                </div>
-                <div class="form-group" style="flex: 0 0 70%;">
-                    <label for="endereco">Endereço:</label>
-                    <input type="text" id="endereco" name="endereco" required>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="numero">Número:</label>
-                    <input type="text" id="numero" name="numero" required>
-                </div>
-                <div class="form-group">
-                    <label for="bairro">Bairro:</label>
-                    <input type="text" id="bairro" name="bairro" required>
-                </div>
-                <div class="form-group">
-                    <label for="cidade_uf">Cidade/UF:</label>
-                    <input type="text" id="cidade_uf" name="cidade_uf" required readonly> 
-                </div>
-            </div>
-
-            <h3>Procedimento e Medicação Inicial</h3>
-            <div class="form-group">
-                <label for="procedimento">Procedimento a ser realizado ou Motivo da Internação:</label>
-                <textarea id="procedimento" name="procedimento" rows="3" required></textarea>
-            </div>
-
-            <div class="form-group">
-                <label>Medicamento Tomado na Entrada (ou prescrito):</label>
-                
-                <div class="form-group">
-                    <label for="medicamento_entrada">Medicamento:</label>
-                    <select id="medicamento_entrada" name="medicamento_entrada">
-                        <option value="">Nenhum/Não Aplicável</option>
-                        <option value="Dipirona">Dipirona (Analgesia)</option>
-                        <option value="Dramin">Dramin (Náusea/Vômito)</option>
-                        <option value="Omeprazol">Omeprazol (Proteção Gástrica)</option>
-                        <option value="Soro Fisiológico">Soro Fisiológico 0.9% (Hidratação)</option>
-                        
-                        {% for med in medicamentos %}
-                            {% if med.nome_medicamento not in ['Dipirona', 'Dramin', 'Omeprazol', 'Soro Fisiológico'] %}
-                                <option value="{{ med.nome_medicamento }}">{{ med.nome_medicamento }}</option>
-                            {% endif %}
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
                         {% endfor %}
-                        <option value="outro">Outro (Especifique abaixo)</option>
-                    </select>
-                </div>
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <h3>Informações do Paciente</h3>
+            
+            <form action="{{ url_for('salvar_prontuario') }}" method="POST">
                 
-                <div class="form-group">
-                    <label for="dose">Dose/Quantidade:</label>
-                    <input type="number" step="0.01" id="dose" name="dose">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="nome_paciente">Nome Completo:</label>
+                        <input type="text" id="nome_paciente" name="nome_paciente" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="data_nascimento">Data de Nascimento:</label>
+                        <input type="date" id="data_nascimento" name="data_nascimento" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hora_entrada">Data e Hora da Internação:</label>
+                        <input type="datetime-local" id="hora_entrada" name="hora_entrada" value="{{ agora }}" required>
+                    </div>
                 </div>
-                
-                <div class="form-group">
-                    <div class="checkbox-sn" style="margin-top: 5px;">
-                        <input type="checkbox" id="se_necessario" name="se_necessario" value="S"> 
-                        <label for="se_necessario">S/N (Se Necessário)</label>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="cep">CEP:</label>
+                        <input type="text" id="cep" name="cep" placeholder="Ex: 95780-000" maxlength="9">
+                    </div>
+                    <div class="form-group" style="flex: 3;">
+                        <label for="endereco">Rua e Número:</label>
+                        <input type="text" id="endereco" name="endereco" placeholder="Rua..." required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="numero">Número:</label>
+                        <input type="text" id="numero" name="numero" placeholder="Nº">
+                    </div>
+                    <div class="form-group" style="flex: 2;">
+                        <label for="bairro">Bairro:</label>
+                        <input type="text" id="bairro" name="bairro" required>
                     </div>
                 </div>
                 
-                <div class="form-group" id="outro_medicamento_group">
-                    <label for="outro_medicamento_nome">Nome do Outro Medicamento:</label>
-                    <input type="text" id="outro_medicamento_nome" name="outro_medicamento_nome">
+                <div class="section-header">
+                    <h3>Dados Clínicos, Triagem e Procedimento</h3>
                 </div>
-            </div>
-            <div class="action-buttons">
-                <button type="submit" class="btn-login">Registrar Novo Prontuário</button>
-                </div>
-        </form>
-    </main>
 
-    <script src="{{ url_for('static', filename='js/prontuario.js') }}"></script>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="cid_10">CID-10 Principal (Diagnóstico):</label>
+                        <input type="text" id="cid_10" name="cid_10" placeholder="Ex: I10 (Hipertensão)" maxlength="10">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="prioridade_atencao">Prioridade de Atenção (Triagem):</label>
+                        <select id="prioridade_atencao" name="prioridade_atencao" required>
+                            <option value="verde">Verde (Não Urgente)</option>
+                            <option value="amarelo">Amarelo (Atenção/Urgência)</option>
+                            <option value="vermelho">Vermelho (Emergência/Urgente)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="procedimento">Procedimento/Motivo da Internação:</label>
+                        <input type="text" id="procedimento" name="procedimento" placeholder="Ex: Cirurgia Apendicite, Pneumonia, etc." required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex: 100%;">
+                        <label for="observacoes_entrada">Observações / Anamnese Inicial (Estado Clínico):</label>
+                        <textarea id="observacoes_entrada" name="observacoes_entrada" rows="3" placeholder="Ex: Paciente orientado, eupneico, dor abdominal aguda (EVA 8)."></textarea>
+                    </div>
+                </div>
+
+                <div class="section-header" style="margin-top: 30px;">
+                    <h3>Administração Inicial de Medicamento</h3>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex: 3;">
+                        <label for="medicamento_entrada">Medicamento Administrado na Entrada:</label>
+                        <select id="medicamento_entrada" name="medicamento_entrada">
+                            <option value="">Nenhum/Aguardando</option>
+                            {% for med in medicamentos %}
+                                <option value="{{ med.nome_medicamento }}">{{ med.nome_medicamento }}</option>
+                            {% endfor %}
+                            <option value="outro">Outro (Especificar)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" style="flex: 1;">
+                        <label for="dose">Dose (Unidades):</label>
+                        <input type="number" step="0.01" id="dose" name="dose" placeholder="Ex: 500">
+                    </div>
+
+                    <div class="form-group checkbox-sn" style="flex: 1; align-self: flex-end; margin-bottom: 0;">
+                        <input type="checkbox" id="se_necessario" name="se_necessario" value="1">
+                        <label for="se_necessario" style="margin-bottom: 0;">Se Necessário (S/N)</label>
+                    </div>
+                </div>
+
+                <div class="form-row" id="outro_medicamento_group" style="display: none;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="outro_medicamento_nome">Nome do Novo Medicamento:</label>
+                        <input type="text" id="outro_medicamento_nome" name="outro_medicamento_nome" placeholder="Nome Completo">
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button type="submit" class="btn-login">Salvar Prontuário</button>
+                </div>
+            </form>
+        </div>
+    </main>
+    
+    <script>
+        // Lógica para mostrar/esconder campo "Outro Medicamento"
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectMed = document.getElementById('medicamento_entrada');
+            const outroGroup = document.getElementById('outro_medicamento_group');
+            
+            if (selectMed && outroGroup) {
+                selectMed.addEventListener('change', function() {
+                    if (this.value === 'outro') {
+                        outroGroup.style.display = 'flex';
+                    } else {
+                        outroGroup.style.display = 'none';
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

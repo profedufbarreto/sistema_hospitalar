@@ -4,13 +4,12 @@ from werkzeug.security import generate_password_hash
 # --- CONFIGURAÇÕES DE CONEXÃO ---
 # ATENÇÃO: Verifique se a senha 'root' é a correta para o seu ambiente MySQL.
 DB_CONFIG = {
-    "host": "127.0.0.1", # Alterado para 127.0.0.1
-    "user": "root",     # Alterado para root
+    "host": "127.0.0.1", 
+    "user": "root",     
     "password": "root", # <--- SENHA REAL DO SEU USUÁRIO ROOT
     "database": "prontuario_hospitalar"
 }
 
-# CORREÇÃO CRÍTICA: Adiciona o parâmetro cursor_factory com um valor padrão de None
 def create_db_connection(cursor_factory=None):
     """
     Tenta estabelecer e retornar uma conexão com o banco de dados.
@@ -56,7 +55,6 @@ def setup_database():
         return
 
     # 2. Conecta-se ao DB criado para criar as tabelas
-    # Chamada sem argumento, usando o cursor padrão do pymysql
     conn = create_db_connection() 
     if conn is None:
         print("❌ Não foi possível continuar a criação das tabelas.")
@@ -68,21 +66,21 @@ def setup_database():
     
     # --- CRIAÇÃO DE TABELAS ---
 
-    # Tabela de Usuários (CORRIGIDO para incluir os novos campos no setup)
+    # Tabela de Usuários (LIMPA)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Usuarios (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        nome_completo VARCHAR(100), -- NOVO CAMPO
+        nome_completo VARCHAR(100), 
         usuario VARCHAR(50) NOT NULL UNIQUE,
         senha VARCHAR(255) NOT NULL,
-        data_nascimento DATE,        -- NOVO CAMPO
-        nacionalidade VARCHAR(50),   -- NOVO CAMPO
+        data_nascimento DATE, 
+        nacionalidade VARCHAR(50), 
         nivel_acesso ENUM('admin', 'tecnico', 'enfermeiro') NOT NULL
     )
     """)
     print("  - Tabela 'Usuarios' criada/verificada.")
     
-    # Tabela de Pacientes/Prontuário
+    # Tabela de Pacientes/Prontuário (LIMPA e CORRIGIDA)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Pacientes (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -93,14 +91,20 @@ def setup_database():
         bairro VARCHAR(100),
         data_entrada DATETIME NOT NULL,
         nome_baixa VARCHAR(100),
-        data_baixa DATE,
+        data_baixa DATETIME, 
         procedimento TEXT,
-        status ENUM('internado', 'alta') DEFAULT 'internado'
+        status ENUM('internado', 'alta') DEFAULT 'internado',
+        usuario_internacao VARCHAR(50), 
+        
+        -- NOVOS CAMPOS DE CLASSIFICAÇÃO
+        cid_10 VARCHAR(10), 
+        observacoes_entrada TEXT,
+        prioridade_atencao ENUM('verde', 'amarelo', 'vermelho') DEFAULT 'verde' 
     )
     """)
     print("  - Tabela 'Pacientes' criada/verificada.")
 
-    # Tabela de Provas de Vida (Dados Vitais)
+    # Tabela de Provas de Vida (Dados Vitais) (LIMPA)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS ProvasDeVida (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -117,7 +121,7 @@ def setup_database():
     """)
     print("  - Tabela 'ProvasDeVida' criada/verificada.")
 
-    # Tabela de Estoque
+    # Tabela de Estoque (LIMPA)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Estoque (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -129,7 +133,7 @@ def setup_database():
     """)
     print("  - Tabela 'Estoque' criada/verificada.")
     
-    # Tabela de Registro de Administração de Medicamentos
+    # Tabela de Registro de Administração de Medicamentos (LIMPA)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS AdministracaoMedicamentos (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -143,7 +147,7 @@ def setup_database():
     """)
     print("  - Tabela 'AdministracaoMedicamentos' criada/verificada.")
     
-    # 3. Insere o Administrador Inicial (COM HASH DE SENHA)
+    # 3. Insere o Administrador Inicial (LIMPO)
     ADMIN_USER = 'admin'
     ADMIN_PASS_PLAINTEXT = '123456789'
     
@@ -152,7 +156,7 @@ def setup_database():
     if not cursor.fetchone():
         hashed_password = generate_password_hash(ADMIN_PASS_PLAINTEXT)
         
-        # Inserção completa com os novos campos
+        # Inserção completa com os campos
         sql = """
         INSERT INTO Usuarios (nome_completo, usuario, senha, data_nascimento, nivel_acesso, nacionalidade) 
         VALUES (%s, %s, %s, %s, %s, %s)
@@ -163,7 +167,7 @@ def setup_database():
             hashed_password, 
             '1990-01-01',              # data_nascimento
             'admin',
-            'Brasileiro'             # nacionalidade
+            'Brasileiro'               # nacionalidade
         ))
         conn.commit()
         print(f"\n✅ Usuário administrador '{ADMIN_USER}' criado com sucesso (Senha: {ADMIN_PASS_PLAINTEXT}).")
@@ -172,6 +176,3 @@ def setup_database():
         
     cursor.close()
     conn.close()
-
-# Removida a chamada if __name__ == '__main__': setup_database() daqui
-# para evitar que o script database.py seja executado duas vezes.

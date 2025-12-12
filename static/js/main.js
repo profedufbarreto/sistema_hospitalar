@@ -1,14 +1,28 @@
-// static/js/main.js - VERSÃO FINALIZADA E COMPLETA COM FILTRO DE MOTIVOS
+// static/js/main.js - VERSÃO COM GRÁFICOS DE PRIORIDADE (VERDE, AMARELO, VERMELHO)
 
 document.addEventListener('DOMContentLoaded', function() {
     
-    const data = FLASK_DASHBOARD_DATA;
-    let movimentacaoChartInstance = null; // Instância para gráfico de linha
-    let motivosChartInstance = null; // Instância para gráfico de rosca
+    // FLASK_DASHBOARD_DATA é injetado pelo Jinja no dashboard.html
+    const data = FLASK_DASHBOARD_DATA; 
+    
+    let movimentacaoChartInstance = null;
+    let diasChartInstance = null;
+    let prioridadeChartInstance = null; // Rosca (Distribuição Atual)
+    let tendenciaPrioridadeChartInstance = null; // Linha (Tendência Mensal)
+    
+    const nomesMeses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    
+    // Cores fixas para Prioridade (Triagem)
+    const coresPrioridade = {
+        'Verde': '#28a745',    // Verde (Não Urgente)
+        'Amarelo': '#ffc107',  // Amarelo (Atenção/Urgência)
+        'Vermelho': '#dc3545'  // Vermelho (Emergência/Urgente)
+    };
 
-    // --- 1. FUNÇÕES DE RENDERIZAÇÃO ---
 
-    // Função para renderizar o Gráfico de Movimentação (Linha)
+    // --- 1. FUNÇÕES DE RENDERIZAÇÃO DE GRÁFICOS ---
+
+    // Função para renderizar o Gráfico de Movimentação (Linha - Mantido)
     function renderMovimentacaoChart(timeframe) {
         const chartData = timeframe === 'anual' ? data.movimentacao_anual : data.movimentacao_mensal;
         const title = timeframe === 'anual' ? 'Movimentação Anual (Últimos 5 Anos)' : 'Movimentação Mensal (Ano Atual)';
@@ -67,39 +81,35 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
-    // Função para renderizar o Gráfico de Motivos (Rosca) com Filtros
-    function renderMotivosChart(filteredData) {
-        const ctxMotivos = document.getElementById('motivosChart');
-        const message = document.getElementById('motivosMessage');
+
+    // NOVO GRÁFICO 1: DISTRIBUIÇÃO ATUAL POR PRIORIDADE (Rosca)
+    function renderPrioridadeChart() {
+        const ctx = document.getElementById('prioridadeChart');
+        const chartData = data.prioridade_data; 
         
-        if (motivosChartInstance) {
-            motivosChartInstance.destroy();
-        }
+        // Verifica se o total de pacientes internados com prioridade definida é > 0
+        const total = chartData.data.reduce((sum, value) => sum + value, 0);
 
-        if (!ctxMotivos) return;
-
-        if (filteredData.labels.length === 0) {
-            ctxMotivos.style.display = 'none';
-            message.style.display = 'block';
-            message.textContent = 'Nenhum motivo selecionado.';
+        if (!ctx || total === 0) {
+            const message = document.getElementById('prioridadeMessage');
+            if (message) message.style.display = 'block';
             return;
         }
-        
-        ctxMotivos.style.display = 'block';
-        message.style.display = 'none';
 
-        motivosChartInstance = new Chart(ctxMotivos.getContext('2d'), {
+        // Mapeia os rótulos ('Verde', 'Amarelo', 'Vermelho') para as cores fixas
+        const backgroundColors = chartData.labels.map(label => coresPrioridade[label]);
+
+        if (prioridadeChartInstance) {
+            prioridadeChartInstance.destroy();
+        }
+
+        prioridadeChartInstance = new Chart(ctx.getContext('2d'), {
             type: 'doughnut',
             data: {
-                labels: filteredData.labels, 
+                labels: chartData.labels, 
                 datasets: [{
-                    data: filteredData.data,
-                    // Garante cores suficientes para a seleção
-                    backgroundColor: [
-                        '#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d', 
-                        '#17a2b8', '#fd7e14', '#6f42c1', '#1f77b4', '#ff7f0e' 
-                    ],
+                    data: chartData.data,
+                    backgroundColor: backgroundColors,
                     hoverOffset: 4
                 }]
             },
@@ -116,12 +126,80 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // NOVO GRÁFICO 2: TENDÊNCIA MENSAL POR PRIORIDADE (Linha)
+    function renderPrioridadeTrendChart() {
+        const ctx = document.getElementById('tendenciaPrioridadeChart');
+        const rawData = data.prioridade_tendencia;
+        
+        if (!ctx || rawData.length === 0) {
+            const message = document.getElementById('tendenciaPrioridadeMessage');
+            if(message) message.style.display = 'block';
+            return;
+        }
+        
+        // As categorias no backend são minúsculas ('verde', 'amarelo', 'vermelho')
+        const priorityCategories = ['verde', 'amarelo', 'vermelho'];
+        
+        // Agrupa os dados por prioridade
+        const datasets = priorityCategories.map(prio => {
+            const dadosMensais = Array(12).fill(0); 
+            
+            rawData.filter(item => item.prioridade_atencao === prio)
+                .forEach(item => {
+                    // Mês é 1-baseado, ajustamos para 0-baseado
+                    dadosMensais[item.mes - 1] = item.total; 
+                });
+            
+            // Converte a primeira letra para maiúscula para exibir a cor correta
+            const labelCapitalized = prio.charAt(0).toUpperCase() + prio.slice(1);
 
-    // Função para renderizar o Gráfico de Dias Médios (Barras)
+            return {
+                label: labelCapitalized + ' Prioridade',
+                data: dadosMensais,
+                borderColor: coresPrioridade[labelCapitalized],
+                backgroundColor: coresPrioridade[labelCapitalized],
+                fill: false,
+                tension: 0.1
+            };
+        });
+
+        if (tendenciaPrioridadeChartInstance) {
+            tendenciaPrioridadeChartInstance.destroy();
+        }
+
+        tendenciaPrioridadeChartInstance = new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: nomesMeses,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Número de Internações' },
+                        ticks: { precision: 0 }
+                    }
+                }
+            }
+        });
+    }
+
+
+    // Função para renderizar o Gráfico de Dias Médios (Barras - Mantido)
     function renderDiasChart() {
         const ctxDias = document.getElementById('diasChart');
         if (ctxDias && data.dias_data.labels.length > 0) {
-            new Chart(ctxDias.getContext('2d'), {
+            if (diasChartInstance) {
+                diasChartInstance.destroy();
+            }
+            diasChartInstance = new Chart(ctxDias.getContext('2d'), {
                 type: 'bar',
                 data: {
                     labels: data.dias_data.labels,
@@ -156,74 +234,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Inicializa o Filtro de Motivos
-    function initMotivosFilter() {
-        const select = document.getElementById('motivosFilter');
-        // Usamos a nova chave com todos os dados brutos
-        const todosMotivos = data.todos_motivos; 
-
-        if (!select || !todosMotivos || todosMotivos.length === 0) {
-            if (select) select.style.display = 'none';
-            // Mensagem de dados indisponíveis
-            const chartDiv = document.querySelector('.charts-analysis .chart-half');
-            chartDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><h3>Motivos de Internação</h3><p style="color: #777;">Nenhum dado de procedimento encontrado.</p></div>';
-            return;
-        }
-
-        let initialSelectionCount = 0;
-
-        // 4.1. Popula o dropdown
-        todosMotivos.forEach(item => {
-            const option = document.createElement('option');
-            // Trunca o nome para exibição no dropdown
-            option.textContent = item.procedimento.length > 30 ? item.procedimento.substring(0, 30) + '...' : item.procedimento;
-            option.value = item.procedimento;
-            
-            // Pré-seleciona os 5 mais populares por padrão
-            if (initialSelectionCount < 5) {
-                option.selected = true;
-                initialSelectionCount++;
-            }
-            select.appendChild(option);
-        });
-        
-        // 4.2. Função de filtragem
-        function filterAndRender() {
-            // Pega os valores (procedimento) das opções selecionadas
-            const selectedOptions = Array.from(select.selectedOptions).map(opt => opt.value);
-
-            const filteredLabels = [];
-            const filteredData = [];
-
-            // Filtra os dados brutos com base nas opções selecionadas
-            todosMotivos.forEach(item => {
-                if (selectedOptions.includes(item.procedimento)) {
-                    // Trunca o nome para exibição no gráfico (pode ser menor aqui)
-                    const label = item.procedimento.length > 20 ? item.procedimento.substring(0, 17) + '...' : item.procedimento;
-                    filteredLabels.push(label);
-                    filteredData.push(item.total);
-                }
-            });
-
-            // Redesenha o gráfico
-            renderMotivosChart({ labels: filteredLabels, data: filteredData });
-        }
-
-        // 4.3. Adiciona Listener e faz a primeira renderização
-        select.addEventListener('change', filterAndRender);
-
-        // Renderização inicial (com os top 5 pré-selecionados)
-        filterAndRender();
-    }
-
-
-    // --- INICIALIZAÇÃO GERAL ---
+    // --- 2. INICIALIZAÇÃO GERAL ---
     
+    // Chama os novos gráficos de Prioridade
+    renderPrioridadeChart();
+    renderPrioridadeTrendChart(); 
+
+    // Chama os gráficos existentes
     renderMovimentacaoChart('mensal'); 
     renderDiasChart();
-    initMotivosFilter();
-
-    // Lógica para alternar entre Mensal e Anual no gráfico de movimentação
+    
+    // Lógica para alternar entre Mensal e Anual no gráfico de movimentação (Mantido)
     const filterButtons = document.querySelectorAll('.btn-filter');
     filterButtons.forEach(button => {
         button.addEventListener('click', function() {

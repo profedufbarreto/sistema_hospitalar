@@ -73,7 +73,7 @@ def logout():
     return redirect(url_for('login'))
 
 # ==============================================================================
-# 📊 ROTA PRINCIPAL (DASHBOARD) - AGORA COM DADOS COMPLETOS PARA FILTRO DE MOTIVOS
+# 📊 ROTA PRINCIPAL (DASHBOARD) - AGORA COM GRÁFICOS DE PRIORIDADE
 # ==============================================================================
 
 @app.route('/dashboard')
@@ -82,16 +82,20 @@ def dashboard():
     conn = get_db_connection()
     current_year = datetime.now().year
     
+    # ESTRUTURA ATUALIZADA DO DICIONÁRIO DE DADOS
     dados_dashboard = {
         'total_internados': 0,
         'altas_ultimos_7_dias': 0,
         'baixo_estoque': 0,
         'provas_vida_ultimas_24h': 0,
-        'todos_motivos': [], # NOVO: Armazena todos os motivos para o JS filtrar
-        'motivos_data': {'labels': [], 'data': []}, # Mantido, mas preenchido no JS
+        
+        # NOVOS DADOS BASEADOS EM PRIORIDADE DE ATENÇÃO
+        'prioridade_data': {'labels': ['Verde', 'Amarelo', 'Vermelho'], 'data': [0, 0, 0]},
+        'prioridade_tendencia': [], # Dados brutos da tendência mensal
+        
         'dias_data': {'labels': [], 'data': []},     
         'movimentacao_mensal': {'labels': [], 'entradas': [], 'altas': []},
-        'movimentacao_anual': {'labels': [], 'entradas': [], 'altas': []}
+        'movimentacao_anual': {'labels': [], 'entradas': [], 'altas': []},
     }
     
     if conn:
@@ -111,21 +115,42 @@ def dashboard():
             cursor.execute("SELECT COUNT(*) FROM ProvasDeVida WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)")
             dados_dashboard['provas_vida_ultimas_24h'] = list(cursor.fetchone().values())[0]
             
-            # 2. DADOS PARA FILTRO DE MOTIVOS (Sem LIMIT)
-            sql_motivos = """
+            # 2. NOVO GRÁFICO 1: DISTRIBUIÇÃO ATUAL POR PRIORIDADE (Rosca)
+            sql_prioridade = """
             SELECT 
-                procedimento, 
+                prioridade_atencao, 
                 COUNT(*) as total 
             FROM Pacientes 
-            GROUP BY procedimento 
-            HAVING procedimento IS NOT NULL AND procedimento != ''
-            ORDER BY total DESC 
+            WHERE status = 'internado' AND prioridade_atencao IS NOT NULL
+            GROUP BY prioridade_atencao 
             """
-            cursor.execute(sql_motivos)
-            # Armazena TODOS os motivos brutos para o JS
-            dados_dashboard['todos_motivos'] = cursor.fetchall() 
+            cursor.execute(sql_prioridade)
+            # Normaliza as chaves para minúsculo para garantir a correspondência
+            prioridades = {item['prioridade_atencao'].lower(): item['total'] for item in cursor.fetchall()}
             
-            # 3. DADOS PARA GRÁFICO DE DIAS MÉDIOS DE INTERNAÇÃO (Barras)
+            # Preenche o dicionário com os valores (usando 'verde', 'amarelo', 'vermelho' como chaves)
+            dados_dashboard['prioridade_data']['data'][0] = prioridades.get('verde', 0)
+            dados_dashboard['prioridade_data']['data'][1] = prioridades.get('amarelo', 0)
+            dados_dashboard['prioridade_data']['data'][2] = prioridades.get('vermelho', 0)
+            
+            
+            # 3. NOVO GRÁFICO 2: TENDÊNCIA MENSAL POR PRIORIDADE (Linha)
+            sql_tendencia_prioridade = f"""
+            SELECT
+                MONTH(data_entrada) AS mes,
+                prioridade_atencao,
+                COUNT(*) AS total
+            FROM Pacientes
+            WHERE YEAR(data_entrada) = {current_year}
+                AND prioridade_atencao IS NOT NULL
+            GROUP BY mes, prioridade_atencao
+            ORDER BY mes ASC
+            """
+            cursor.execute(sql_tendencia_prioridade)
+            dados_dashboard['prioridade_tendencia'] = cursor.fetchall()
+            
+            
+            # 4. DADOS PARA GRÁFICO DE DIAS MÉDIOS DE INTERNAÇÃO (Barras)
             sql_dias = """
             SELECT 
                 nome_baixa,
@@ -143,7 +168,7 @@ def dashboard():
             dados_dashboard['dias_data']['labels'] = [d['nome_baixa'] for d in dias_medios]
             dados_dashboard['dias_data']['data'] = [round(float(d['media_dias']), 1) for d in dias_medios]
             
-            # 4. MOVIMENTAÇÃO MENSAL
+            # 5. MOVIMENTAÇÃO MENSAL (Mantido)
             sql_entradas_mensal = f"""
             SELECT MONTH(data_entrada) as mes, COUNT(*) as entradas
             FROM Pacientes
@@ -170,7 +195,7 @@ def dashboard():
                 dados_dashboard['movimentacao_mensal']['altas'].append(altas_mensal.get(mes_num, 0))
 
 
-            # 5. MOVIMENTAÇÃO ANUAL
+            # 6. MOVIMENTAÇÃO ANUAL (Mantido)
             sql_movimentacao_anual = f"""
             SELECT 
                 YEAR(data_entrada) as ano, 
@@ -195,15 +220,17 @@ def dashboard():
                     dados_dashboard['movimentacao_anual']['labels'].append(str(ano))
                     dados_dashboard['movimentacao_anual']['entradas'].append(0)
                     dados_dashboard['movimentacao_anual']['altas'].append(0)
+
             
         except Exception as e:
             conn.rollback()
             print(f"Erro CRÍTICO ao buscar dados do dashboard: {e}")
-            dados_dashboard['todos_motivos'] = []
-            dados_dashboard['motivos_data'] = {'labels': [], 'data': []}
+            # Resetamos todos os dados para evitar quebras
+            dados_dashboard['prioridade_data'] = {'labels': ['Verde', 'Amarelo', 'Vermelho'], 'data': [0, 0, 0]}
             dados_dashboard['dias_data'] = {'labels': [], 'data': []}
             dados_dashboard['movimentacao_mensal'] = {'labels': [], 'entradas': [], 'altas': []}
             dados_dashboard['movimentacao_anual'] = {'labels': [], 'entradas': [], 'altas': []}
+            dados_dashboard['prioridade_tendencia'] = []
         finally:
             if conn:
                 cursor.close()
@@ -252,9 +279,11 @@ def salvar_prontuario():
     cursor = conn.cursor()
 
     try:
+        # **ATUALIZADO:** Incluindo cid_10, observacoes_entrada e prioridade_atencao
         sql_paciente = """
-        INSERT INTO Pacientes (nome, data_nascimento, cep, endereco, bairro, data_entrada, procedimento, status, usuario_internacao)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, 'internado', %s)
+        INSERT INTO Pacientes (nome, data_nascimento, cep, endereco, bairro, data_entrada, procedimento, 
+                               status, usuario_internacao, cid_10, observacoes_entrada, prioridade_atencao)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, 'internado', %s, %s, %s, %s)
         """
         try:
             data_nascimento_mysql = datetime.strptime(dados['data_nascimento'], '%Y-%m-%d').date()
@@ -262,6 +291,11 @@ def salvar_prontuario():
             data_nascimento_mysql = None 
 
         data_entrada_mysql = dados['hora_entrada'].replace('T', ' ')
+        
+        # Novos dados
+        cid_10_val = dados.get('cid_10', '').strip()
+        observacoes_val = dados.get('observacoes_entrada', '').strip()
+        prioridade_val = dados.get('prioridade_atencao', 'verde').lower() # Novo campo (garante minúsculo)
         
         cursor.execute(sql_paciente, (
             dados['nome_paciente'], 
@@ -271,11 +305,15 @@ def salvar_prontuario():
             dados['bairro'], 
             data_entrada_mysql,
             dados['procedimento'],
-            usuario_internacao
+            usuario_internacao,
+            cid_10_val,
+            observacoes_val,
+            prioridade_val 
         ))
         
         paciente_id = cursor.lastrowid
 
+        # ... (restante da lógica de medicamento - Mantido)
         medicamento = dados.get('medicamento_entrada')
         medicamento_nome = None
         
@@ -335,7 +373,8 @@ def pacientes():
     pacientes_internados = []
     if conn:
         try:
-            sql = "SELECT id, nome, data_nascimento, data_entrada FROM Pacientes WHERE status = 'internado' ORDER BY nome"
+            # Seleciona também a prioridade para exibição/triagem
+            sql = "SELECT id, nome, data_nascimento, data_entrada, prioridade_atencao FROM Pacientes WHERE status = 'internado' ORDER BY nome"
             cursor = conn.cursor()
             cursor.execute(sql)
             pacientes_internados = cursor.fetchall()
@@ -589,7 +628,7 @@ def arquivo():
     pacientes_altas = []
     if conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, nome, data_entrada, data_baixa, nome_baixa, procedimento FROM Pacientes WHERE status = 'alta' ORDER BY data_baixa DESC")
+        cursor.execute("SELECT id, nome, data_entrada, data_baixa, nome_baixa, procedimento, prioridade_atencao FROM Pacientes WHERE status = 'alta' ORDER BY data_baixa DESC")
         pacientes_altas = cursor.fetchall()
         cursor.close()
         conn.close()
