@@ -180,20 +180,13 @@ body {
 
 
 /* ========================================================= */
-/* 5. MÓDULO DASHBOARD */
+/* 5. MÓDULO DASHBOARD (ESTILOS CONSOLIDADOS E NOVOS) */
 /* ========================================================= */
 
 .dashboard-content {
     padding: 30px;
-    max-width: 1400px;
+    max-width: 1400px; /* Mais largura para gráficos */
     margin: 0 auto;
-}
-
-.dashboard-content h3 {
-    color: #333;
-    border-bottom: 2px solid #eee;
-    padding-bottom: 10px;
-    margin-bottom: 25px;
 }
 
 /* --- Cartões KPI --- */
@@ -201,7 +194,7 @@ body {
     display: flex;
     gap: 20px;
     margin-bottom: 40px;
-    flex-wrap: wrap; /* Garante quebras em telas menores */
+    flex-wrap: wrap; 
 }
 
 .card {
@@ -234,12 +227,31 @@ body {
 .card-internados .kpi-value { color: #007bff; }
 .card-altas .kpi-value { color: #28a745; }
 .card-estoque .kpi-value { color: #ffc107; }
+.card-pv .kpi-value { color: #20b2aa; } /* Cor nova para PV */
 
-/* --- Seção de Gráficos --- */
-.charts-section {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-    gap: 30px;
+/* Alerta visual para baixo estoque */
+.kpi-alerta { 
+    color: #dc3545 !important;
+    animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+    from { opacity: 1; }
+    to { opacity: 0.7; }
+}
+
+/* --- Gráficos e Painel (Dashboard Visuals) --- */
+.dashboard-visuals {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    margin-top: 30px;
+}
+
+/* Contêiner do gráfico de linha de Movimentação (Largura Total) */
+.charts-full-width {
+    width: 100%;
+    margin-bottom: 30px;
 }
 
 .chart-container {
@@ -249,11 +261,120 @@ body {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.chart-container h4 {
-    text-align: center;
-    color: #444;
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 15px;
 }
+
+.chart-header h3 {
+    margin: 0;
+    font-size: 1.2em;
+    color: #333;
+}
+
+/* Contêiner para os gráficos de análise de 50% */
+.charts-analysis {
+    display: flex;
+    flex: 3; /* Ocupa a maior parte da largura */
+    gap: 20px;
+}
+
+.chart-half {
+    flex: 1;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    min-height: 350px;
+}
+
+.chart-half h3 {
+    text-align: center;
+    margin-top: 0;
+    font-size: 1.1em;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+/* Painel de Ações Rápidas */
+.info-painel {
+    flex: 1; /* Ocupa 1/4 da largura */
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.info-block {
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.info-block:last-child {
+    border-bottom: none;
+}
+
+.info-block h4 {
+    color: #20b2aa;
+    border-left: 4px solid #20b2aa;
+    padding-left: 10px;
+    margin-bottom: 10px;
+}
+
+.info-block ul {
+    list-style: none;
+    padding: 0;
+}
+
+.info-block ul li {
+    padding: 5px 0;
+    font-size: 0.95em;
+}
+
+/* Botões de Filtro */
+.btn-filter {
+    padding: 8px 15px;
+    border: 1px solid #ccc;
+    background-color: #f8f9fa;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.2s, border-color 0.2s;
+    font-size: 0.9em;
+    margin-left: 10px;
+}
+
+.btn-filter:hover {
+    background-color: #e9ecef;
+}
+
+.btn-filter.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+/* Botões de Ação Rápida (Full Width) */
+.btn-full-width {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 8px;
+    text-align: center;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background-color 0.2s;
+    color: white;
+}
+
+/* Cores dos botões do painel */
+.info-block a[href*="prontuario"] { background-color: #007bff; }
+.info-block a[href*="estoque"] { background-color: #ffc107; color: #333; }
+.info-block a[href*="estoque"]:hover { background-color: #e0a800; }
+.info-block a[href*="prontuario"]:hover { background-color: #0056b3; }
 
 
 /* ========================================================= */
@@ -712,8 +833,6 @@ tr:hover {
     display: inline-block;
 }
 
-/* Removido o campo-procedimento, pois agora usamos procedimento-data-item e procedimento-texto */
-
 /* Em static/css/style.css */
 
 /* --- Estilos para Mensagens Flash --- */
@@ -748,7 +867,7 @@ tr:hover {
     border-color: #f5c6cb;
 }
 
-/* --- Dashboard Charts Layout (Adicione ao seu style.css) --- */
+/* --- Dashboard Charts Layout (CONSOLIDADOS) --- */
 
 .dashboard-visuals {
     display: flex;
@@ -757,9 +876,37 @@ tr:hover {
     margin-top: 30px;
 }
 
-.charts-row {
+/* Novo Contêiner de Largura Total para Gráfico de Linha */
+.charts-full-width {
+    width: 100%;
+    margin-bottom: 30px;
+}
+
+.chart-container {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.chart-header {
     display: flex;
-    flex: 3; /* Ocupa a maior parte da largura */
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.chart-header h3 {
+    margin: 0;
+    font-size: 1.2em;
+    color: #333;
+}
+
+
+/* Contêiner para os gráficos de análise de 50% */
+.charts-analysis {
+    display: flex;
+    flex: 3; /* Ocupa 3/4 da largura no layout flex */
     gap: 20px;
 }
 
@@ -780,63 +927,49 @@ tr:hover {
     margin-bottom: 15px;
 }
 
+/* Painel de Ações Rápidas */
 .info-painel {
-    flex: 1; /* O painel de informações ocupa 1/4 da largura */
+    flex: 1; /* Ocupa 1/4 da largura no layout flex */
     background-color: #fff;
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.info-block {
-    margin-bottom: 20px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
-}
-
-.info-block h4 {
-    color: #20b2aa;
-    border-left: 4px solid #20b2aa;
-    padding-left: 10px;
-    margin-bottom: 10px;
-}
-
-.info-block ul {
-    list-style: none;
-    padding: 0;
-}
-
-.info-block ul li {
-    padding: 5px 0;
-    font-size: 0.95em;
-}
-
-.btn-full-width {
-    display: block;
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 8px;
-    text-align: center;
+/* Botões de Filtro */
+.btn-filter {
+    padding: 8px 15px;
+    border: 1px solid #ccc;
+    background-color: #f8f9fa;
+    cursor: pointer;
     border-radius: 5px;
-    text-decoration: none;
-    font-weight: bold;
-    transition: background-color 0.2s;
-    color: white;
+    transition: background-color 0.2s, border-color 0.2s;
+    font-size: 0.9em;
+    margin-left: 10px;
 }
-/* Cores dos botões do painel */
-.info-block a[href*="prontuario"] { background-color: #007bff; }
-.info-block a[href*="estoque"] { background-color: #ffc107; color: #333; }
-.info-block a[href*="estoque"]:hover { background-color: #e0a800; }
-.info-block a[href*="prontuario"]:hover { background-color: #0056b3; }
+
+.btn-filter:hover {
+    background-color: #e9ecef;
+}
+
+.btn-filter.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
 
 
-/* Responsividade básica */
-@media (max-width: 992px) {
-    .dashboard-visuals, .charts-row {
+/* Responsividade básica (JÁ ESTAVA CORRETA) */
+@media (max-width: 1200px) {
+    .dashboard-visuals {
         flex-direction: column;
     }
+    
+    .charts-analysis {
+        flex-direction: column; /* Pilha os gráficos de análise em telas menores */
+    }
 
-    .charts-row, .chart-half, .info-painel {
+    .charts-analysis, .chart-half, .info-painel {
         flex: none;
         width: 100%;
     }

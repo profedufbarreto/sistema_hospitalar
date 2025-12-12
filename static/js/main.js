@@ -1,94 +1,176 @@
-// static/js/main.js
+// static/js/main.js - VERSÃO FINALIZADA E COMPLETA COM FILTROS DE MOVIMENTAÇÃO
 
 document.addEventListener('DOMContentLoaded', function() {
     
-    // ⚠️ Usa a variável injetada pelo Flask no dashboard.html
+    // ⚠️ Variável injetada pelo Flask (do dashboard.html)
     const data = FLASK_DASHBOARD_DATA;
+    let movimentacaoChartInstance = null; // Variável para armazenar a instância do gráfico de linha
 
-    // 1. Atualiza os Cartões KPI (Usando IDs do HTML)
-    // O JS agora apenas garante que os valores sejam exibidos, embora o Jinja já faça isso.
-    // É mantido para compatibilidade e caso o Jinja não consiga renderizar.
-    const totalInternados = document.getElementById('total-internados');
-    if (totalInternados) totalInternados.textContent = data.total_internados;
-    
-    const altasMes = document.getElementById('altas-mes');
-    if (altasMes) altasMes.textContent = data.altas_ultimos_7_dias;
-    
-    const estoqueCritico = document.getElementById('estoque-critico');
-    if (estoqueCritico) estoqueCritico.textContent = data.baixo_estoque;
-    
+    // --- 1. FUNÇÕES DE RENDERIZAÇÃO DE GRÁFICOS ---
 
-    // 2. Gráfico de Motivos de Internação (Gráfico de Rosca/Pizza)
-    const ctxMotivos = document.getElementById('motivosChart');
-    if (ctxMotivos && data.motivos_data.labels.length > 0) {
-        new Chart(ctxMotivos.getContext('2d'), {
-            type: 'doughnut',
+    // Função para renderizar o Gráfico de Movimentação (Linha)
+    function renderMovimentacaoChart(timeframe) {
+        // Seleciona os dados baseados no filtro (mensal ou anual)
+        const chartData = timeframe === 'anual' ? data.movimentacao_anual : data.movimentacao_mensal;
+        const title = timeframe === 'anual' ? 'Movimentação Anual (Últimos 5 Anos)' : 'Movimentação Mensal (Ano Atual)';
+        const ctx = document.getElementById('movimentacaoChart');
+
+        // Destrói instância anterior para redesenhar
+        if (movimentacaoChartInstance) {
+            movimentacaoChartInstance.destroy();
+        }
+
+        if (!ctx || chartData.labels.length === 0) {
+             // Caso não haja dados, exibe mensagem
+             ctx.parentElement.innerHTML = '<p style="text-align: center; color: #777;">Não há dados de movimentação para o período selecionado.</p>';
+             return;
+        }
+
+        movimentacaoChartInstance = new Chart(ctx.getContext('2d'), {
+            type: 'line',
             data: {
-                // Usa as chaves do Python
-                labels: data.motivos_data.labels, 
+                labels: chartData.labels,
                 datasets: [{
-                    data: data.motivos_data.data,
-                    backgroundColor: [
-                        '#007bff', // Azul
-                        '#28a745', // Verde
-                        '#ffc107', // Amarelo
-                        '#dc3545', // Vermelho
-                        '#6c757d'  // Cinza
-                    ],
-                    hoverOffset: 4
+                    label: 'Novas Entradas',
+                    data: chartData.entradas,
+                    borderColor: '#007bff', // Azul
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    fill: false, // Não preenche área
+                    tension: 0.3
+                }, {
+                    label: 'Altas',
+                    data: chartData.altas,
+                    borderColor: '#28a745', // Verde
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    fill: false, // Não preenche área
+                    tension: 0.3
                 }]
             },
             options: {
                 responsive: true,
                 plugins: {
-                    legend: {
-                        position: 'top',
-                    },
                     title: {
-                        display: false
+                        display: true,
+                        text: title
                     }
-                }
-            }
-        });
-    } else if (ctxMotivos) {
-        ctxMotivos.parentElement.innerHTML = '<p style="text-align: center; color: #777;">Não há dados suficientes de internações para este gráfico.</p>';
-    }
-
-    // 3. Gráfico de Dias Médios de Internação (Gráfico de Barras)
-    const ctxDias = document.getElementById('diasChart');
-    if (ctxDias && data.dias_data.labels.length > 0) {
-        new Chart(ctxDias.getContext('2d'), {
-            type: 'bar',
-            data: {
-                // Usa as chaves do Python
-                labels: data.dias_data.labels,
-                datasets: [{
-                    label: 'Dias Médios',
-                    data: data.dias_data.data,
-                    backgroundColor: '#17a2b8', // Azul Ciano
-                    borderColor: '#17a2b8',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
+                },
                 scales: {
                     y: {
                         beginAtZero: true,
                         title: {
                             display: true,
-                            text: 'Média de Dias'
+                            text: 'Número de Pacientes'
+                        },
+                        ticks: {
+                            precision: 0 // Garante que o eixo Y mostre apenas números inteiros
                         }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
                     }
                 }
             }
         });
-    } else if (ctxDias) {
-        ctxDias.parentElement.innerHTML = '<p style="text-align: center; color: #777;">Não há dados de altas registradas para este gráfico.</p>';
     }
+
+    // Função para renderizar o Gráfico de Motivos (Rosca)
+    function renderMotivosChart() {
+        const ctxMotivos = document.getElementById('motivosChart');
+        if (ctxMotivos && data.motivos_data.labels.length > 0) {
+            new Chart(ctxMotivos.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: data.motivos_data.labels, 
+                    datasets: [{
+                        data: data.motivos_data.data,
+                        backgroundColor: [
+                            '#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d'
+                        ],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        },
+                        title: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        } else if (ctxMotivos) {
+            // Se não houver dados
+            ctxMotivos.parentElement.innerHTML = '<p style="text-align: center; color: #777;">Não há dados de internações para este gráfico.</p>';
+        }
+    }
+
+    // Função para renderizar o Gráfico de Dias Médios (Barras)
+    function renderDiasChart() {
+        const ctxDias = document.getElementById('diasChart');
+        if (ctxDias && data.dias_data.labels.length > 0) {
+            new Chart(ctxDias.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: data.dias_data.labels,
+                    datasets: [{
+                        label: 'Dias Médios',
+                        data: data.dias_data.data,
+                        backgroundColor: '#17a2b8', 
+                        borderColor: '#17a2b8',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Média de Dias'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        } else if (ctxDias) {
+            // Se não houver dados
+            ctxDias.parentElement.innerHTML = '<p style="text-align: center; color: #777;">Não há dados de altas registradas para este gráfico.</p>';
+        }
+    }
+
+
+    // --- 2. LÓGICA DE FILTRO E INICIALIZAÇÃO ---
+
+    // Funções de atualização dos KPIs são removidas, pois o Jinja já faz a injeção inicial
+    // e os elementos são apenas referências para garantir que o JS possa interagir
+    
+    // Inicializa os gráficos estáticos
+    renderMotivosChart();
+    renderDiasChart();
+    
+    // Inicializa o gráfico de movimentação como MENSAL por padrão
+    renderMovimentacaoChart('mensal');
+
+    // Lógica para alternar entre Mensal e Anual no gráfico de movimentação
+    const filterButtons = document.querySelectorAll('.btn-filter');
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove a classe 'active' de todos
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // Adiciona a classe 'active' ao botão clicado
+            this.classList.add('active');
+            
+            // Renderiza o gráfico com o filtro selecionado
+            const timeframe = this.getAttribute('data-filter');
+            renderMovimentacaoChart(timeframe);
+        });
+    });
+
 });

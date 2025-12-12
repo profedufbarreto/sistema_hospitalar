@@ -87,13 +87,18 @@ def logout():
 @login_required # Garante que só usuários logados acessem
 def dashboard():
     conn = get_db_connection()
+    current_year = datetime.now().year # Obtém o ano atual
+    
     dados_dashboard = {
         'total_internados': 0,
         'altas_ultimos_7_dias': 0,
         'baixo_estoque': 0,
         'provas_vida_ultimas_24h': 0,
-        'motivos_data': {'labels': [], 'data': []}, # NOVO: Dados para gráfico de motivos
-        'dias_data': {'labels': [], 'data': []}     # NOVO: Dados para gráfico de dias médios
+        'motivos_data': {'labels': [], 'data': []}, 
+        'dias_data': {'labels': [], 'data': []},     
+        # NOVOS DADOS TEMPORAIS:
+        'movimentacao_mensal': {'labels': [], 'entradas': [], 'altas': []},
+        'movimentacao_anual': {'labels': [], 'entradas': [], 'altas': []}
     }
     
     if conn:
@@ -108,14 +113,13 @@ def dashboard():
             cursor.execute("SELECT COUNT(*) FROM Pacientes WHERE status = 'alta' AND data_baixa >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")
             dados_dashboard['altas_ultimos_7_dias'] = list(cursor.fetchone().values())[0]
             
-            # Usando < 100 para ser um critério mais visível
             cursor.execute("SELECT COUNT(*) FROM Estoque WHERE quantidade < 100") 
             dados_dashboard['baixo_estoque'] = list(cursor.fetchone().values())[0]
 
             cursor.execute("SELECT COUNT(*) FROM ProvasDeVida WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)")
             dados_dashboard['provas_vida_ultimas_24h'] = list(cursor.fetchone().values())[0]
             
-            # 2. DADOS PARA GRÁFICO DE MOTIVOS (Motivos mais comuns)
+            # 2. DADOS PARA GRÁFICO DE MOTIVOS (Rosca)
             sql_motivos = """
             SELECT 
                 procedimento, 
@@ -132,7 +136,7 @@ def dashboard():
             dados_dashboard['motivos_data']['labels'] = [m['procedimento'][:20] + '...' if len(m['procedimento']) > 20 else m['procedimento'] for m in motivos]
             dados_dashboard['motivos_data']['data'] = [m['total'] for m in motivos]
             
-            # 3. DADOS PARA GRÁFICO DE DIAS MÉDIOS DE INTERNAÇÃO (Por profissional de baixa/alta)
+            # 3. DADOS PARA GRÁFICO DE DIAS MÉDIOS DE INTERNAÇÃO (Barras)
             sql_dias = """
             SELECT 
                 nome_baixa,
@@ -151,11 +155,70 @@ def dashboard():
             dados_dashboard['dias_data']['labels'] = [d['nome_baixa'] for d in dias_medios]
             dados_dashboard['dias_data']['data'] = [round(float(d['media_dias']), 1) for d in dias_medios]
             
+            # 4. NOVO: MOVIMENTAÇÃO MENSAL (Entradas e Saídas no ANO ATUAL)
+            # Entrada por Mês
+            sql_entradas_mensal = f"""
+            SELECT MONTH(data_entrada) as mes, COUNT(*) as entradas
+            FROM Pacientes
+            WHERE YEAR(data_entrada) = {current_year}
+            GROUP BY mes
+            """
+            cursor.execute(sql_entradas_mensal)
+            entradas_mensal = {item['mes']: item['entradas'] for item in cursor.fetchall()}
+
+            # Alta por Mês
+            sql_altas_mensal = f"""
+            SELECT MONTH(data_baixa) as mes, COUNT(*) as altas
+            FROM Pacientes
+            WHERE YEAR(data_baixa) = {current_year} AND status = 'alta'
+            GROUP BY mes
+            """
+            cursor.execute(sql_altas_mensal)
+            altas_mensal = {item['mes']: item['altas'] for item in cursor.fetchall()}
+
+            # Cria listas ordenadas de 1 a 12 para o JS
+            nomes_meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+            
+            for mes_num in range(1, 13):
+                dados_dashboard['movimentacao_mensal']['labels'].append(nomes_meses[mes_num - 1])
+                dados_dashboard['movimentacao_mensal']['entradas'].append(entradas_mensal.get(mes_num, 0))
+                dados_dashboard['movimentacao_mensal']['altas'].append(altas_mensal.get(mes_num, 0))
+
+
+            # 5. NOVO: MOVIMENTAÇÃO ANUAL (Últimos 5 Anos)
+            sql_movimentacao_anual = f"""
+            SELECT 
+                YEAR(data_entrada) as ano, 
+                SUM(CASE WHEN data_entrada IS NOT NULL THEN 1 ELSE 0 END) as entradas,
+                SUM(CASE WHEN data_baixa IS NOT NULL THEN 1 ELSE 0 END) as altas
+            FROM Pacientes
+            WHERE YEAR(data_entrada) >= {current_year - 4} OR YEAR(data_baixa) >= {current_year - 4}
+            GROUP BY ano
+            ORDER BY ano ASC
+            """
+            cursor.execute(sql_movimentacao_anual)
+            mov_anual = cursor.fetchall()
+
+            dados_anual = {item['ano']: {'entradas': item['entradas'], 'altas': item['altas']} for item in mov_anual}
+            
+            for ano in range(current_year - 4, current_year + 1):
+                if ano in dados_anual:
+                    dados_dashboard['movimentacao_anual']['labels'].append(str(ano))
+                    dados_dashboard['movimentacao_anual']['entradas'].append(dados_anual[ano]['entradas'])
+                    dados_dashboard['movimentacao_anual']['altas'].append(dados_anual[ano]['altas'])
+                else:
+                    dados_dashboard['movimentacao_anual']['labels'].append(str(ano))
+                    dados_dashboard['movimentacao_anual']['entradas'].append(0)
+                    dados_dashboard['movimentacao_anual']['altas'].append(0)
+            
         except Exception as e:
+            conn.rollback()
             print(f"Erro CRÍTICO ao buscar dados do dashboard: {e}")
             # Em caso de erro, garante que os dados do gráfico estejam vazios para evitar quebrar o JS
             dados_dashboard['motivos_data'] = {'labels': [], 'data': []}
             dados_dashboard['dias_data'] = {'labels': [], 'data': []}
+            dados_dashboard['movimentacao_mensal'] = {'labels': [], 'entradas': [], 'altas': []}
+            dados_dashboard['movimentacao_anual'] = {'labels': [], 'entradas': [], 'altas': []}
         finally:
             if conn:
                 cursor.close()

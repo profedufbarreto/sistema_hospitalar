@@ -27,6 +27,7 @@
     </header>
     
     <main class="dashboard-content">
+        
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="flash-messages">
@@ -63,25 +64,45 @@
 
         <hr>
 
+        <section class="charts-full-width">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3>Movimentação de Pacientes (Entradas vs. Altas)</h3>
+                    <div class="filter-controls">
+                        <button class="btn-filter active" data-filter="mensal">Mensal (Ano Atual)</button>
+                        <button class="btn-filter" data-filter="anual">Anual (Últimos 5 Anos)</button>
+                    </div>
+                </div>
+                <canvas id="movimentacaoChart" height="90"></canvas>
+            </div>
+        </section>
+
+
         <section class="dashboard-visuals">
             
-            <div class="chart-container">
-                <h3>Top 5 Medicamentos Administrados (Quantidade)</h3>
-                <canvas id="medicamentosChart"></canvas>
-                <p class="chart-info">* Quantidade total de cada medicamento administrada a todos os pacientes (internados ou com alta).</p>
+            <div class="charts-analysis">
+                <div class="chart-half">
+                    <h3>Top 5 Motivos de Internação</h3>
+                    <canvas id="motivosChart"></canvas>
+                </div>
+                
+                <div class="chart-half">
+                    <h3>Dias Médios de Internação (Profissionais de Alta)</h3>
+                    <canvas id="diasChart"></canvas>
+                </div>
             </div>
             
             <div class="info-painel">
-                <h3>Painel de Auditoria e Status</h3>
+                <h3>Painel de Ações Rápidas</h3>
                 
                 <div class="info-block">
                     <h4>Próximos Passos</h4>
                     <ul>
                         <li><a href="{{ url_for('pacientes') }}">Revisar Sinais Vitais (PV)</a></li>
                         {% if dados.total_internados > 0 %}
-                            <li><a href="{{ url_for('pacientes') }}">Gerenciar Altas Pendentes</a></li>
+                            <li><a href="{{ url_for('pacientes') }}" style="font-weight: bold;">Gerenciar {{ dados.total_internados }} Pacientes Internados</a></li>
                         {% else %}
-                            <li>Nenhuma alta pendente.</li>
+                            <li>Nenhum paciente internado atualmente.</li>
                         {% endif %}
                         {% if dados.baixo_estoque > 0 %}
                             <li style="color: #dc3545;">⚠️ <a href="{{ url_for('estoque') }}">Reabastecer {{ dados.baixo_estoque }} itens em baixo estoque!</a></li>
@@ -91,8 +112,8 @@
                 
                 <div class="info-block">
                     <h4>Acesso Rápido</h4>
-                    <a href="{{ url_for('prontuario') }}" class="btn-full-width">➕ Registrar Nova Internação</a>
-                    <a href="{{ url_for('estoque') }}" class="btn-full-width">📦 Gerenciar Estoque</a>
+                    <a href="{{ url_for('prontuario') }}" class="btn-full-width" style="background-color: #007bff;">➕ Registrar Nova Internação</a>
+                    <a href="{{ url_for('estoque') }}" class="btn-full-width" style="background-color: #ffc107;">📦 Gerenciar Estoque</a>
                 </div>
                 
             </div>
