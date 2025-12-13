@@ -4,6 +4,49 @@
     <meta charset="UTF-8">
     <title>Novo Prontuário | PEP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Estilos adicionais para o novo botão de adicionar (Ajuste se necessário) */
+        .add-med-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 1.2em;
+            margin-top: 10px;
+        }
+        .remove-med-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 1em;
+            margin-left: 10px;
+            height: 40px; /* Para alinhar */
+            align-self: flex-end;
+            margin-bottom: 5px;
+        }
+        /* Garantindo que o grupo de medicamento e o botão + fiquem na mesma linha */
+        .medication-section-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+        /* Ajuste do layout de cada item de medicamento */
+        .medication-item {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .medication-item .form-group {
+            margin-right: 10px;
+        }
+    </style>
 </head>
 <body>
     
@@ -118,36 +161,12 @@
                 <div class="section-header" style="margin-top: 30px;">
                     <h3>Administração Inicial de Medicamento</h3>
                 </div>
-
-                <div class="form-row">
-                    <div class="form-group" style="flex: 3;">
-                        <label for="medicamento_entrada">Medicamento Administrado na Entrada:</label>
-                        <select id="medicamento_entrada" name="medicamento_entrada">
-                            <option value="">Nenhum/Aguardando</option>
-                            {% for med in medicamentos %}
-                                <option value="{{ med.nome_medicamento }}">{{ med.nome_medicamento }}</option>
-                            {% endfor %}
-                            <option value="outro">Outro (Especificar)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group" style="flex: 1;">
-                        <label for="dose">Dose (Unidades):</label>
-                        <input type="number" step="0.01" id="dose" name="dose" placeholder="Ex: 500">
+                
+                <div id="medication-container">
                     </div>
 
-                    <div class="form-group checkbox-sn" style="flex: 1; align-self: flex-end; margin-bottom: 0;">
-                        <input type="checkbox" id="se_necessario" name="se_necessario" value="1">
-                        <label for="se_necessario" style="margin-bottom: 0;">Se Necessário (S/N)</label>
-                    </div>
-                </div>
+                <button type="button" id="add-med-btn" class="add-med-button">Adicionar outro Medicamento (+)</button>
 
-                <div class="form-row" id="outro_medicamento_group" style="display: none;">
-                    <div class="form-group" style="flex: 1;">
-                        <label for="outro_medicamento_nome">Nome do Novo Medicamento:</label>
-                        <input type="text" id="outro_medicamento_nome" name="outro_medicamento_nome" placeholder="Nome Completo">
-                    </div>
-                </div>
 
                 <div class="action-buttons">
                     <button type="submit" class="btn-login">Salvar Prontuário</button>
@@ -155,53 +174,184 @@
             </form>
         </div>
     </main>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Lógica 1: Mostrar/esconder campo "Outro Medicamento"
-            const selectMed = document.getElementById('medicamento_entrada');
-            const outroGroup = document.getElementById('outro_medicamento_group');
+
+    <template id="medication-template">
+        <div class="medication-item">
+            <div class="form-row" style="flex-grow: 1;">
+                <div class="form-group" style="flex: 3;">
+                    <label for="medicamento_entrada_NEW_INDEX">Medicamento Administrado:</label>
+                    <select id="medicamento_entrada_NEW_INDEX" 
+                            name="medicamento_entrada[]" 
+                            class="medicamento-select"
+                            onchange="toggleOutro(this)">
+                        <option value="">Nenhum/Aguardando</option>
+                        {% for med in medicamentos %}
+                            <option value="{{ med.nome_medicamento }}">{{ med.nome_medicamento }}</option>
+                        {% endfor %}
+                        <option value="outro">Outro (Especificar)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="flex: 1;">
+                    <label for="dose_NEW_INDEX">Dose (Unidades):</label>
+                    <input type="number" 
+                           step="0.01" 
+                           id="dose_NEW_INDEX" 
+                           name="dose[]" 
+                           placeholder="Ex: 500">
+                </div>
+
+                <div class="form-group checkbox-sn" style="flex: 1; align-self: flex-end; margin-bottom: 0;">
+                    <input type="checkbox" 
+                           id="se_necessario_NEW_INDEX" 
+                           name="se_necessario_NEW_INDEX" 
+                           value="1"
+                           class="sn-checkbox">
+                    <label for="se_necessario_NEW_INDEX" style="margin-bottom: 0;">Se Necessário (S/N)</label>
+                    <input type="hidden" name="se_necessario[]" value="0" class="sn-hidden-input">
+                </div>
+            </div>
+
+            <div class="form-row outro-medicamento-group" style="display: none; flex-basis: 100%; margin-top: 10px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="outro_medicamento_nome_NEW_INDEX">Nome do Novo Medicamento:</label>
+                    <input type="text" 
+                           id="outro_medicamento_nome_NEW_INDEX" 
+                           name="outro_medicamento_nome[]" 
+                           placeholder="Nome Completo">
+                </div>
+            </div>
             
-            if (selectMed && outroGroup) {
-                selectMed.addEventListener('change', function() {
-                    if (this.value === 'outro') {
-                        outroGroup.style.display = 'flex';
+            <button type="button" class="remove-med-button" onclick="removeMedicationItem(this)">-</button>
+        </div>
+    </template>
+
+
+    <script>
+        let medIndex = 0; // Contador global para garantir nomes de campos únicos
+
+        // Função de utilidade para tratar a visibilidade do campo "Outro Medicamento"
+        function toggleOutro(selectElement) {
+            const itemContainer = selectElement.closest('.medication-item');
+            if (!itemContainer) return;
+
+            const outroGroup = itemContainer.querySelector('.outro-medicamento-group');
+            if (outroGroup) {
+                if (selectElement.value === 'outro') {
+                    outroGroup.style.display = 'flex';
+                } else {
+                    outroGroup.style.display = 'none';
+                    // Limpa o valor para não enviar dados desnecessários
+                    const inputOutro = outroGroup.querySelector('input[name="outro_medicamento_nome[]"]');
+                    if (inputOutro) {
+                        inputOutro.value = '';
+                    }
+                }
+            }
+        }
+        
+        // Função para garantir que os checkboxes enviem 0 quando desmarcados e 1 quando marcados
+        function setupCheckboxLogic(itemContainer) {
+            const checkbox = itemContainer.querySelector('.sn-checkbox');
+            const hiddenInput = itemContainer.querySelector('.sn-hidden-input');
+            
+            if (checkbox && hiddenInput) {
+                // Renomeia o hidden input para corresponder ao checkbox
+                hiddenInput.name = checkbox.name.replace('[]', '_hidden'); 
+                
+                checkbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        hiddenInput.disabled = true; // Se marcado, só o checkbox envia o valor '1'
                     } else {
-                        outroGroup.style.display = 'none';
+                        hiddenInput.disabled = false; // Se desmarcado, o hidden input envia o valor '0'
                     }
                 });
+                
+                // Inicializa o estado (se o template tiver o checkbox default checked)
+                if (checkbox.checked) {
+                    hiddenInput.disabled = true;
+                }
             }
+        }
+
+
+        // Função principal para adicionar um novo item de medicamento
+        function addMedicationItem(isInitial = false) {
+            const template = document.getElementById('medication-template');
+            const container = document.getElementById('medication-container');
+            const clone = template.content.cloneNode(true);
             
-            // Lógica 2: Máscara de CPF
+            // Renomeia os IDs e 'name' attributes para serem únicos
+            const htmlContent = clone.firstElementChild.innerHTML.replace(/NEW_INDEX/g, medIndex);
+            clone.firstElementChild.innerHTML = htmlContent;
+
+            // Se não for o item inicial (o primeiro), exibe o botão de remover
+            const removeBtn = clone.querySelector('.remove-med-button');
+            if (removeBtn) {
+                if (isInitial) {
+                    removeBtn.style.display = 'none';
+                } else {
+                    removeBtn.style.display = 'inline-block';
+                }
+            }
+
+            container.appendChild(clone);
+            
+            // Configura a lógica do checkbox para o novo item
+            setupCheckboxLogic(container.lastElementChild);
+            
+            // Adiciona o listener de alteração para o campo 'outro' no novo item
+            const newSelect = container.lastElementChild.querySelector('.medicamento-select');
+            if(newSelect) {
+                 newSelect.addEventListener('change', function() {
+                    toggleOutro(this);
+                });
+            }
+
+            medIndex++;
+        }
+        
+        // Função para remover um item de medicamento
+        function removeMedicationItem(button) {
+            const item = button.closest('.medication-item');
+            if (item) {
+                item.remove();
+            }
+        }
+        
+        // Lógica de inicialização principal
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // 1. Adiciona o primeiro item de medicamento
+            addMedicationItem(true); 
+
+            // 2. Listener para o botão 'Adicionar outro Medicamento'
+            const addMedBtn = document.getElementById('add-med-btn');
+            if (addMedBtn) {
+                addMedBtn.addEventListener('click', function() {
+                    addMedicationItem(false);
+                });
+            }
+
+            // 3. Lógica de máscara de CPF (MANTIDA)
             const cpfInput = document.getElementById('cpf');
             if (cpfInput) {
                 cpfInput.addEventListener('input', function(e) {
-                    let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não for dígito
+                    let value = e.target.value.replace(/\D/g, ''); 
                     let formattedValue = '';
 
-                    if (value.length > 0) {
-                        formattedValue = value.substring(0, 3);
-                    }
-                    if (value.length >= 4) {
-                        formattedValue += '.' + value.substring(3, 6);
-                    }
-                    if (value.length >= 7) {
-                        formattedValue += '.' + value.substring(6, 9);
-                    }
-                    if (value.length >= 10) {
-                        formattedValue += '-' + value.substring(9, 11);
-                    }
+                    if (value.length > 0) { formattedValue = value.substring(0, 3); }
+                    if (value.length >= 4) { formattedValue += '.' + value.substring(3, 6); }
+                    if (value.length >= 7) { formattedValue += '.' + value.substring(6, 9); }
+                    if (value.length >= 10) { formattedValue += '-' + value.substring(9, 11); }
                     
-                    // Limita a 14 caracteres (formatação)
-                    if (value.length > 11) {
-                         formattedValue = formattedValue.substring(0, 14);
-                    }
+                    if (value.length > 11) { formattedValue = formattedValue.substring(0, 14); }
                     
                     e.target.value = formattedValue;
                 });
             }
 
-            // Lógica 3: Busca de Endereço via CEP (ViaCEP API)
+            // 4. Lógica de Busca de Endereço via CEP (MANTIDA)
             const cepInput = document.getElementById('cep');
             const enderecoInput = document.getElementById('endereco');
             const bairroInput = document.getElementById('bairro');
@@ -211,9 +361,7 @@
                 cepInput.addEventListener('blur', function() {
                     let cep = cepInput.value.replace(/\D/g, ''); 
 
-                    if (cep.length !== 8) {
-                        return;
-                    }
+                    if (cep.length !== 8) { return; }
                     
                     enderecoInput.value = '... buscando ...';
                     bairroInput.value = '';

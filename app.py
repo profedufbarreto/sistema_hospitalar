@@ -279,7 +279,7 @@ def salvar_prontuario():
     cursor = conn.cursor()
 
     try:
-        # **CORRIGIDO:** Adicionando 'cpf' à lista de colunas
+        # 1. SALVAR INFORMAÇÕES DO PACIENTE
         sql_paciente = """
         INSERT INTO Pacientes (nome, data_nascimento, cpf, cep, endereco, bairro, data_entrada, procedimento, 
                                status, usuario_internacao, cid_10, observacoes_entrada, prioridade_atencao)
@@ -292,19 +292,16 @@ def salvar_prontuario():
 
         data_entrada_mysql = dados['hora_entrada'].replace('T', ' ')
         
-        # NOVO: Limpando o CPF de formatação (apenas números)
         cpf_val = dados.get('cpf', '').replace('.', '').replace('-', '').strip() 
-
-        # Novos dados clínicos/triagem
         cid_10_val = dados.get('cid_10', '').strip()
         observacoes_val = dados.get('observacoes_entrada', '').strip()
         prioridade_val = dados.get('prioridade_atencao', 'verde').lower() 
         
-        # Execução com 12 parâmetros (o número de %s é 12)
+        # Execução da inserção do paciente
         cursor.execute(sql_paciente, (
             dados['nome_paciente'], 
             data_nascimento_mysql, 
-            cpf_val,                  # <--- NOVO PARÂMETRO CPF
+            cpf_val,                  
             dados['cep'], 
             f"{dados['endereco']}, {dados['numero']}",
             dados['bairro'], 
@@ -318,54 +315,93 @@ def salvar_prontuario():
         
         paciente_id = cursor.lastrowid
 
-        # ... (restante da lógica de medicamento - Mantido)
-        medicamento = dados.get('medicamento_entrada')
-        medicamento_nome = None
+        # 2. PROCESSAR MÚLTIPLOS MEDICAMENTOS (NOVA LÓGICA)
         
-        if medicamento and medicamento != 'outro':
-            medicamento_nome = medicamento
-        elif medicamento == 'outro' and dados.get('outro_medicamento_nome'):
-            medicamento_nome = dados['outro_medicamento_nome']
-            cursor.execute("INSERT IGNORE INTO Estoque (nome_medicamento, quantidade, unidade, data_ultima_entrada) VALUES (%s, 0, 'UN', NOW())", (medicamento_nome,))
-
-
-        if medicamento_nome:
-            try:
-                dose = float(dados.get('dose') or 0.0) 
-            except ValueError:
-                conn.close()
-                return "Erro: Dose de medicamento inválida. Use apenas números.", 400
+        # Obtém as listas de dados do formulário (são listas, mesmo que haja apenas 1 item)
+        medicamento_nomes_selecionados = request.form.getlist('medicamento_entrada[]')
+        doses = request.form.getlist('dose[]')
+        nomes_outros = request.form.getlist('outro_medicamento_nome[]')
+        
+        # A lista de "se_necessario" virá dos campos hidden, garantindo '0' se não marcado
+        # Os nomes dos campos hidden são gerados dinamicamente no JS, mas podemos simplificar assumindo
+        # que a ausência de um campo com valor '1' implica '0'. 
+        
+        # Vamos usar a lista de "dose[]" para iterar, pois ela deve ter o mesmo comprimento de "medicamento_entrada[]"
+        if len(medicamento_nomes_selecionados) == len(doses):
             
-            sql_med = """
-            INSERT INTO AdministracaoMedicamentos (paciente_id, medicamento_nome, quantidade_administrada, se_necessario, data_hora)
-            VALUES (%s, %s, %s, %s, %s)
-            """
-            cursor.execute(sql_med, (
-                paciente_id,
-                medicamento_nome,
-                dose,
-                1 if 'se_necessario' in dados else 0,
-                data_entrada_mysql
-            ))
+            # Inicializa o contador para os nomes 'Outros' (que podem não corresponder 1:1)
+            outro_index = 0
             
-            if dose > 0:
-                sql_baixa = "UPDATE Estoque SET quantidade = GREATEST(quantidade - %s, 0) WHERE nome_medicamento = %s"
-                cursor.execute(sql_baixa, (dose, medicamento_nome))
+            for i in range(len(medicamento_nomes_selecionados)):
+                med_selecionado = medicamento_nomes_selecionados[i]
+                dose_str = doses[i]
                 
-                if cursor.rowcount == 0:
-                    print(f"ATENÇÃO: Medicamento '{medicamento_nome}' não encontrado. Baixa não efetuada.")
+                # Trata dose
+                try:
+                    dose = float(dose_str) if dose_str else 0.0
+                except ValueError:
+                    flash(f"Erro: Dose de medicamento inválida para o item {i+1}. Use apenas números.", 'danger')
+                    raise Exception("Dose inválida")
+
+                # Determina o nome final do medicamento
+                medicamento_nome = med_selecionado
+                if med_selecionado == 'outro':
+                    # Pega o próximo nome da lista de nomes 'Outros'
+                    if outro_index < len(nomes_outros) and nomes_outros[outro_index].strip():
+                        medicamento_nome = nomes_outros[outro_index].strip()
+                        # Garante que o novo medicamento exista no estoque (ou o ignora)
+                        cursor.execute("INSERT IGNORE INTO Estoque (nome_medicamento, quantidade, unidade, data_ultima_entrada) VALUES (%s, 0, 'UN', NOW())", (medicamento_nome,))
+                    else:
+                        # Se for 'outro' mas o campo de texto foi deixado vazio, ignora esta administração
+                        outro_index += 1
+                        continue 
+                        
+                    # Incrementa o contador do nome 'Outro'
+                    outro_index += 1
+                
+                
+                # Se o nome do medicamento for válido (não vazio e não 'outro' deixado em branco)
+                if medicamento_nome and med_selecionado != '':
+
+                    # Verifica o status "Se Necessário" (S/N)
+                    # O campo do checkbox é gerado como "se_necessario_X", onde X é o índice
+                    # O campo hidden (com valor '0') é o que será enviado se o checkbox estiver desmarcado.
+                    # Vamos iterar sobre o request.form para encontrar a chave dinâmica 'se_necessario_X'
+                    
+                    # Procura pelo valor '1' do checkbox (se marcado) ou usa '0' do hidden field (se desmarcado/ausente)
+                    se_necessario_val = dados.get(f'se_necessario_{i}', '0') # Se marcado, vem '1'. Se desmarcado, vem '0' do hidden field.
+                    
+                    
+                    # Insere o registro na administração
+                    sql_med = """
+                    INSERT INTO AdministracaoMedicamentos (paciente_id, medicamento_nome, quantidade_administrada, se_necessario, data_hora)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """
+                    cursor.execute(sql_med, (
+                        paciente_id,
+                        medicamento_nome,
+                        dose,
+                        se_necessario_val,
+                        data_entrada_mysql
+                    ))
+                    
+                    # Dá baixa no estoque
+                    if dose > 0:
+                        sql_baixa = "UPDATE Estoque SET quantidade = GREATEST(quantidade - %s, 0) WHERE nome_medicamento = %s"
+                        cursor.execute(sql_baixa, (dose, medicamento_nome))
+                        
+                        if cursor.rowcount == 0:
+                            print(f"ATENÇÃO: Medicamento '{medicamento_nome}' não encontrado no Estoque. Baixa não efetuada.")
 
 
         conn.commit()
-        return redirect(url_for('dashboard', mensagem='Prontuário salvo com sucesso!'))
+        return redirect(url_for('dashboard', mensagem='Prontuário e medicamentos salvos com sucesso!'))
         
     except IntegrityError as ie:
         conn.rollback()
-        # Trata especificamente a violação de chave única (provavelmente CPF duplicado)
         if 'Duplicate entry' in str(ie) and 'cpf' in str(ie).lower():
             flash("Erro: Já existe um paciente registrado com este CPF.", 'danger')
             return redirect(url_for('prontuario'))
-
         print(f"Erro ao salvar prontuário (IntegrityError): {ie}")
         return f"Erro interno ao salvar os dados: {ie}", 500
         
@@ -424,6 +460,7 @@ def detalhes_prontuario(paciente_id):
             cursor.execute("SELECT * FROM ProvasDeVida WHERE paciente_id = %s ORDER BY data_hora DESC", (paciente_id,))
             provas_vida = cursor.fetchall()
             
+            # Buscando medicamentos
             cursor.execute("SELECT * FROM AdministracaoMedicamentos WHERE paciente_id = %s ORDER BY data_hora DESC", (paciente_id,))
             medicamentos_admin = cursor.fetchall()
         
