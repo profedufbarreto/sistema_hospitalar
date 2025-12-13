@@ -279,11 +279,11 @@ def salvar_prontuario():
     cursor = conn.cursor()
 
     try:
-        # **ATUALIZADO:** Incluindo cid_10, observacoes_entrada e prioridade_atencao
+        # **CORRIGIDO:** Adicionando 'cpf' à lista de colunas
         sql_paciente = """
-        INSERT INTO Pacientes (nome, data_nascimento, cep, endereco, bairro, data_entrada, procedimento, 
+        INSERT INTO Pacientes (nome, data_nascimento, cpf, cep, endereco, bairro, data_entrada, procedimento, 
                                status, usuario_internacao, cid_10, observacoes_entrada, prioridade_atencao)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, 'internado', %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'internado', %s, %s, %s, %s)
         """
         try:
             data_nascimento_mysql = datetime.strptime(dados['data_nascimento'], '%Y-%m-%d').date()
@@ -292,14 +292,19 @@ def salvar_prontuario():
 
         data_entrada_mysql = dados['hora_entrada'].replace('T', ' ')
         
-        # Novos dados
+        # NOVO: Limpando o CPF de formatação (apenas números)
+        cpf_val = dados.get('cpf', '').replace('.', '').replace('-', '').strip() 
+
+        # Novos dados clínicos/triagem
         cid_10_val = dados.get('cid_10', '').strip()
         observacoes_val = dados.get('observacoes_entrada', '').strip()
-        prioridade_val = dados.get('prioridade_atencao', 'verde').lower() # Novo campo (garante minúsculo)
+        prioridade_val = dados.get('prioridade_atencao', 'verde').lower() 
         
+        # Execução com 12 parâmetros (o número de %s é 12)
         cursor.execute(sql_paciente, (
             dados['nome_paciente'], 
             data_nascimento_mysql, 
+            cpf_val,                  # <--- NOVO PARÂMETRO CPF
             dados['cep'], 
             f"{dados['endereco']}, {dados['numero']}",
             dados['bairro'], 
@@ -354,6 +359,16 @@ def salvar_prontuario():
         conn.commit()
         return redirect(url_for('dashboard', mensagem='Prontuário salvo com sucesso!'))
         
+    except IntegrityError as ie:
+        conn.rollback()
+        # Trata especificamente a violação de chave única (provavelmente CPF duplicado)
+        if 'Duplicate entry' in str(ie) and 'cpf' in str(ie).lower():
+            flash("Erro: Já existe um paciente registrado com este CPF.", 'danger')
+            return redirect(url_for('prontuario'))
+
+        print(f"Erro ao salvar prontuário (IntegrityError): {ie}")
+        return f"Erro interno ao salvar os dados: {ie}", 500
+        
     except Exception as e:
         conn.rollback()
         print(f"Erro ao salvar prontuário: {e}")
@@ -402,6 +417,7 @@ def detalhes_prontuario(paciente_id):
         cursor = conn.cursor()
         
         try:
+            # O SELECT * garante que todos os novos campos, incluindo CPF, sejam carregados
             cursor.execute("SELECT * FROM Pacientes WHERE id = %s", (paciente_id,))
             paciente = cursor.fetchone()
             

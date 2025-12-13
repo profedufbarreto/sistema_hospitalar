@@ -28,15 +28,28 @@
         {% if paciente.status == 'internado' and session.get('nivel') in ['admin', 'tecnico'] %}
         <div class="action-buttons" style="justify-content: flex-end; margin-bottom: 20px;">
             <a href="{{ url_for('alta_form', paciente_id=paciente.id) }}" 
-               class="btn-logout" 
-               style="background-color: #dc3545; color: white;">
+                class="btn-logout" 
+                style="background-color: #dc3545; color: white;">
                 Registrar Alta Médica
             </a>
         </div>
         {% endif %}
+        
         <h3 class="section-header">Dados do Paciente e Internação</h3>
         
         <div class="data-item"><strong>Nome:</strong> {{ paciente.nome }}</div>
+
+        <div class="data-item">
+            <strong>CPF:</strong> 
+            <span class="value">
+                {% set cpf_raw = paciente.cpf | string %}
+                {% if cpf_raw and cpf_raw|length == 11 %}
+                    {{ cpf_raw[:3] }}.{{ cpf_raw[3:6] }}.{{ cpf_raw[6:9] }}-{{ cpf_raw[9:11] }}
+                {% else %}
+                    {{ paciente.cpf if paciente.cpf else 'N/A' }}
+                {% endif %}
+            </span>
+        </div>
         <div class="data-item"><strong>Nascimento:</strong> {{ paciente.data_nascimento.strftime('%d/%m/%Y') }}</div>
         
         <div class="data-item"><strong>Usuário da Internação:</strong> {{ paciente.usuario_internacao | default('N/A') }}</div>

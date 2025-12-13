@@ -66,7 +66,7 @@ def setup_database():
     
     # --- CRIAÇÃO DE TABELAS ---
 
-    # Tabela de Usuários (LIMPA)
+    # Tabela de Usuários (LIMPA - INALTERADO)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Usuarios (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -80,12 +80,13 @@ def setup_database():
     """)
     print("  - Tabela 'Usuarios' criada/verificada.")
     
-    # Tabela de Pacientes/Prontuário (LIMPA e CORRIGIDA)
+    # Tabela de Pacientes/Prontuário (CORRIGIDO: Incluindo CPF)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Pacientes (
         id INT AUTO_INCREMENT PRIMARY KEY,
         nome VARCHAR(100) NOT NULL,
         data_nascimento DATE,
+        cpf VARCHAR(11) UNIQUE,  -- NOVO CAMPO: CPF (11 dígitos, único)
         cep VARCHAR(10),
         endereco VARCHAR(255),
         bairro VARCHAR(100),
@@ -104,7 +105,7 @@ def setup_database():
     """)
     print("  - Tabela 'Pacientes' criada/verificada.")
 
-    # Tabela de Provas de Vida (Dados Vitais) (LIMPA)
+    # Tabela de Provas de Vida (Dados Vitais) (LIMPA - INALTERADO)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS ProvasDeVida (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -121,7 +122,7 @@ def setup_database():
     """)
     print("  - Tabela 'ProvasDeVida' criada/verificada.")
 
-    # Tabela de Estoque (LIMPA)
+    # Tabela de Estoque (LIMPA - INALTERADO)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Estoque (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -133,7 +134,7 @@ def setup_database():
     """)
     print("  - Tabela 'Estoque' criada/verificada.")
     
-    # Tabela de Registro de Administração de Medicamentos (LIMPA)
+    # Tabela de Registro de Administração de Medicamentos (LIMPA - INALTERADO)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS AdministracaoMedicamentos (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -147,7 +148,7 @@ def setup_database():
     """)
     print("  - Tabela 'AdministracaoMedicamentos' criada/verificada.")
     
-    # 3. Insere o Administrador Inicial (LIMPO)
+    # 3. Insere o Administrador Inicial (LIMPO - INALTERADO)
     ADMIN_USER = 'admin'
     ADMIN_PASS_PLAINTEXT = '123456789'
     

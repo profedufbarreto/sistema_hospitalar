@@ -57,6 +57,14 @@
 
                 <div class="form-row">
                     <div class="form-group" style="flex: 1;">
+                        <label for="cpf">CPF:</label>
+                        <input type="text" id="cpf" name="cpf" placeholder="000.000.000-00" maxlength="14" required>
+                    </div>
+                    <div class="form-group" style="flex: 2;"></div> 
+                </div> 
+
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
                         <label for="cep">CEP:</label>
                         <input type="text" id="cep" name="cep" placeholder="Ex: 95780-000" maxlength="9">
                     </div>
@@ -149,8 +157,8 @@
     </main>
     
     <script>
-        // Lógica para mostrar/esconder campo "Outro Medicamento"
         document.addEventListener('DOMContentLoaded', function() {
+            // Lógica 1: Mostrar/esconder campo "Outro Medicamento"
             const selectMed = document.getElementById('medicamento_entrada');
             const outroGroup = document.getElementById('outro_medicamento_group');
             
@@ -161,6 +169,78 @@
                     } else {
                         outroGroup.style.display = 'none';
                     }
+                });
+            }
+            
+            // Lógica 2: Máscara de CPF
+            const cpfInput = document.getElementById('cpf');
+            if (cpfInput) {
+                cpfInput.addEventListener('input', function(e) {
+                    let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não for dígito
+                    let formattedValue = '';
+
+                    if (value.length > 0) {
+                        formattedValue = value.substring(0, 3);
+                    }
+                    if (value.length >= 4) {
+                        formattedValue += '.' + value.substring(3, 6);
+                    }
+                    if (value.length >= 7) {
+                        formattedValue += '.' + value.substring(6, 9);
+                    }
+                    if (value.length >= 10) {
+                        formattedValue += '-' + value.substring(9, 11);
+                    }
+                    
+                    // Limita a 14 caracteres (formatação)
+                    if (value.length > 11) {
+                         formattedValue = formattedValue.substring(0, 14);
+                    }
+                    
+                    e.target.value = formattedValue;
+                });
+            }
+
+            // Lógica 3: Busca de Endereço via CEP (ViaCEP API)
+            const cepInput = document.getElementById('cep');
+            const enderecoInput = document.getElementById('endereco');
+            const bairroInput = document.getElementById('bairro');
+            const numeroInput = document.getElementById('numero');
+            
+            if (cepInput && enderecoInput && bairroInput) {
+                cepInput.addEventListener('blur', function() {
+                    let cep = cepInput.value.replace(/\D/g, ''); 
+
+                    if (cep.length !== 8) {
+                        return;
+                    }
+                    
+                    enderecoInput.value = '... buscando ...';
+                    bairroInput.value = '';
+
+                    fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (!("erro" in data)) {
+                                enderecoInput.value = data.logradouro;
+                                bairroInput.value = data.bairro;
+                                
+                                if (numeroInput) {
+                                    numeroInput.focus();
+                                }
+                                
+                            } else {
+                                enderecoInput.value = '';
+                                bairroInput.value = '';
+                                alert("CEP não encontrado. Digite o endereço manualmente.");
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro na API ViaCEP:', error);
+                            enderecoInput.value = '';
+                            bairroInput.value = '';
+                            alert("Erro ao consultar a API de CEP.");
+                        });
                 });
             }
         });
