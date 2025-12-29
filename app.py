@@ -198,14 +198,36 @@ def adicionar_usuario():
     if session['nivel'] not in ['admin', 'tecnico']: return "Negado", 403
     dados = request.form
     hashed = generate_password_hash(dados['nova_senha'])
+    
+    # Pegamos a data do formulário ou definimos uma data padrão caso venha vazio
+    data_nasc = dados.get('data_nascimento')
+    if not data_nasc:
+        data_nasc = '1900-01-01' # Valor padrão de segurança
+
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO Usuarios (nome_completo, usuario, senha, nivel_acesso, nacionalidade) VALUES (%s, %s, %s, %s, %s)",
-                       (dados['nome_completo'], dados['usuario'], hashed, dados['nivel_acesso'], dados['nacionalidade']))
+        # Adicionamos 'data_nascimento' na lista de colunas e o valor correspondente
+        sql = """
+            INSERT INTO Usuarios (nome_completo, usuario, senha, nivel_acesso, nacionalidade, data_nascimento) 
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(sql, (
+            dados['nome_completo'], 
+            dados['usuario'], 
+            hashed, 
+            dados['nivel_acesso'], 
+            dados['nacionalidade'],
+            data_nasc
+        ))
         conn.commit()
-    except IntegrityError: flash("Login já existe!", "danger")
-    finally: conn.close()
+        flash("Usuário cadastrado com sucesso!", "success")
+    except IntegrityError: 
+        flash("Login já existe!", "danger")
+    except Exception as e:
+        flash(f"Erro ao cadastrar: {e}", "danger")
+    finally: 
+        conn.close()
     return redirect(url_for('gerenciar_usuarios'))
 
 @app.route('/usuarios/editar/<int:user_id>', methods=['POST'])

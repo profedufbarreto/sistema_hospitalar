@@ -6,7 +6,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* CSS para Minimalismo e Navegação */
         .theme-icon-minimal {
             font-family: "Segoe UI Symbol", "Symbola", "DejaVu Sans", sans-serif;
             font-weight: 100;
@@ -32,13 +31,17 @@
             transition: opacity 0.2s;
         }
 
-        .nav-link:hover {
-            opacity: 0.7;
-        }
+        .nav-link:hover { opacity: 0.7; }
 
         .nav-link.active {
             color: #61afef;
             font-weight: bold;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 250px;
+            width: 100%;
         }
     </style>
 </head>
@@ -49,7 +52,7 @@
         
         <nav style="display: flex; align-items: center; gap: 20px;">
             <button id="theme-toggle" class="theme-toggle-btn" title="Alternar Modo de Cor" 
-                    style="background: none; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; padding: 0; border-radius: 8px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; transition: 0.3s;">
+                    style="background: none; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; padding: 0; border-radius: 8px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; transition: 0.3s;">
                 <span id="theme-icon" class="theme-icon-minimal" style="font-size: 1.2rem;"></span>
             </button>
 
@@ -72,8 +75,10 @@
                     <h4>✅ Altas</h4>
                     <select class="kpi-filter-white" onchange="updateKpi('altas', this.value)">
                         <option value="7d">7 dias</option>
+                        <option value="15d">15 dias</option>
                         <option value="30d">30 dias</option>
-                        <option value="ano">1 ano</option>
+                        <option value="trimestre">1 trimestre</option>
+                        <option value="semestre">1 semestre</option>
                     </select>
                 </div>
                 <p class="kpi-value" id="kpi-altas-val">{{ dados.altas_ultimos_7_dias }}</p>
@@ -83,7 +88,7 @@
                 <h4>📦 Baixo Estoque</h4>
                 <p class="kpi-value">{{ dados.baixo_estoque }}</p>
                 <div class="stock-progress">
-                    <div class="stock-bar" style="width: {{ dados.baixo_estoque }}%;"></div>
+                    <div class="stock-bar" style="width: {{ dados.baixo_estoque }}%; background: white; height: 4px; border-radius: 2px;"></div>
                 </div>
             </div>
 
@@ -93,17 +98,18 @@
                     <select class="kpi-filter-white" onchange="updateKpi('pv', this.value)">
                         <option value="24h">24h</option>
                         <option value="48h">48h</option>
+                        <option value="92h">92h</option>
                     </select>
                 </div>
                 <p class="kpi-value" id="kpi-pv-val">{{ dados.provas_vida_ultimas_24h }}</p>
-                <a href="{{ url_for('provas_vida_geral') }}" style="color: white; text-decoration: none; font-size: 0.75em; display: block; text-align: center; margin-top: 5px;">🔍 Ver Histórico</a>
+                <a href="{{ url_for('provas_vida_geral') }}" class="btn-view-more">🔍 Ver Histórico</a>
             </div>
         </section>
 
         <section class="charts-grid">
             <div class="chart-container-small">
                 <div class="chart-header">
-                    <h3>📈 Movimentação Mensal</h3>
+                    <h3>📈 Fluxo Mensal</h3>
                     <div class="chart-controls">
                         <button onclick="toggleLine(0)">Entradas</button>
                         <button onclick="toggleLine(1)">Altas</button>
@@ -113,7 +119,7 @@
             </div>
 
             <div class="chart-container-small">
-                <h3>⭕ Prioridade Atual</h3>
+                <h3>⭕ Prioridade Ativa (Internados)</h3>
                 <div class="chart-wrapper"><canvas id="prioridadeChart"></canvas></div>
             </div>
 
@@ -123,12 +129,12 @@
             </div>
 
             <div class="chart-container-small">
-                <h3>📅 Histórico Anual</h3>
+                <h3>📅 Comparativo Anual</h3>
                 <div class="chart-wrapper"><canvas id="anualChart"></canvas></div>
             </div>
 
             <div class="chart-container-small">
-                <h3>📉 Tendência de Prioridade</h3>
+                <h3>⭕ Distribuição Anual de Triagem</h3>
                 <div class="chart-wrapper"><canvas id="tendenciaChart"></canvas></div>
             </div>
         </section>
@@ -140,9 +146,11 @@
 
         Chart.defaults.color = '#abb2bf';
         Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
+        
+        // Cores diversificadas para os profissionais
         const professionalColors = ['#61afef', '#98c379', '#e5c07b', '#c678dd', '#e06c75', '#56b6c2', '#d19a66'];
 
-        // Lógica de Gráficos
+        // 1. Gráfico Mensal
         mensalChart = new Chart(document.getElementById('mensalChart'), {
             type: 'line',
             data: {
@@ -161,6 +169,7 @@
             mensalChart.update();
         }
 
+        // 2. Prioridade Atual
         new Chart(document.getElementById('prioridadeChart'), {
             type: 'doughnut',
             data: {
@@ -170,15 +179,22 @@
             options: { cutout: '75%', responsive: true, maintainAspectRatio: false }
         });
 
+        // 3. Dias Médios / Profissional (Cores diferentes por coluna)
         new Chart(document.getElementById('diasChart'), {
             type: 'bar',
             data: {
                 labels: d.dias_data.labels || [],
-                datasets: [{ label: 'Média de Dias', data: d.dias_data.data || [], backgroundColor: professionalColors, borderRadius: 5 }]
+                datasets: [{ 
+                    label: 'Média de Dias', 
+                    data: d.dias_data.data || [], 
+                    backgroundColor: professionalColors, 
+                    borderRadius: 5 
+                }]
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
 
+        // 4. Histórico Anual
         new Chart(document.getElementById('anualChart'), {
             type: 'bar',
             data: {
@@ -191,39 +207,65 @@
             options: { responsive: true, maintainAspectRatio: false }
         });
 
+        // 5. Distribuição Anual de Triagem (Rosca Acumulada)
         new Chart(document.getElementById('tendenciaChart'), {
-            type: 'line',
+            type: 'doughnut',
             data: {
-                labels: d.movimentacao_mensal.labels,
-                datasets: [
-                    { label: 'Verde', data: d.prioridade_tendencia.verde, borderColor: '#98c379', tension: 0.3 },
-                    { label: 'Amarelo', data: d.prioridade_tendencia.amarelo, borderColor: '#e5c07b', tension: 0.3 },
-                    { label: 'Vermelho', data: d.prioridade_tendencia.vermelho, borderColor: '#e06c75', tension: 0.3 }
-                ]
+                labels: ['Verde', 'Amarelo', 'Vermelho'],
+                datasets: [{
+                    label: 'Total Acumulado',
+                    data: [
+                        d.prioridade_tendencia.verde.reduce((a, b) => a + b, 0),
+                        d.prioridade_tendencia.amarelo.reduce((a, b) => a + b, 0),
+                        d.prioridade_tendencia.vermelho.reduce((a, b) => a + b, 0)
+                    ],
+                    backgroundColor: ['#98c379', '#e5c07b', '#e06c75'],
+                    borderWidth: 0,
+                    hoverOffset: 15
+                }]
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            options: { 
+                cutout: '70%', 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                let value = context.parsed;
+                                let total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                let percentage = ((value * 100) / total).toFixed(1) + "%";
+                                return `${label}: ${value} (${percentage})`;
+                            }
+                        }
+                    }
+                }
+            }
         });
 
+        // Atualização Dinâmica via API
         function updateKpi(t, p) {
-            fetch(`/api/kpi/${t}/${p}`).then(r => r.json()).then(data => {
-                document.getElementById(`kpi-${t}-val`).innerText = data.valor;
+            fetch(`/api/kpi/${t}/${p}`).then(res => res.json()).then(data => {
+                const el = document.getElementById(`kpi-${t}-val`);
+                if(el) {
+                    el.style.opacity = 0;
+                    setTimeout(() => {
+                        el.innerText = data.valor;
+                        el.style.opacity = 1;
+                    }, 150);
+                }
             });
         }
 
-        // --- TEMA E ÍCONE TÉCNICO ---
         const themeToggle = document.getElementById('theme-toggle');
         const themeIcon = document.getElementById('theme-icon');
 
         function refreshUI(isDark) {
-            if (isDark) {
-                document.body.classList.add('dark-mode');
-                themeIcon.innerHTML = '&#9728;'; // Sol Técnico
-                themeIcon.style.color = '#ffcc00';
-            } else {
-                document.body.classList.remove('dark-mode');
-                themeIcon.innerHTML = '&#9789;'; // Lua Técnica
-                themeIcon.style.color = '#333';
-            }
+            document.body.classList.toggle('dark-mode', isDark);
+            themeIcon.innerHTML = isDark ? '&#9728;' : '&#9789;';
+            themeIcon.style.color = isDark ? '#ffcc00' : '#333';
         }
 
         const savedTheme = localStorage.getItem('theme') || 'dark';
