@@ -4,33 +4,33 @@
     <meta charset="UTF-8">
     <title>Módulo Estoque | PEP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .theme-icon-minimal {
+            font-family: "Segoe UI Symbol", sans-serif;
+            font-weight: 100;
+            user-select: none;
+            display: inline-block;
+            transition: color 0.3s ease;
+        }
+        .low-stock-alert { background-color: rgba(224, 108, 117, 0.1) !important; color: #e06c75; }
+    </style>
 </head>
-<body>
+<body class="dark-mode">
     
-    <header class="main-header">
-        <h2>Gerenciamento | PEP</h2> 
-        <nav style="display: flex; align-items: center;">
-            <div class="theme-switcher">
-                <input type="checkbox" id="theme-toggle" title="Alternar Modo de Visualização">
-                <label for="theme-toggle" class="theme-icon-label"></label>
-            </div>
-        
-            <a href="{{ url_for('dashboard') }}">Dashboard</a>
-            <a href="{{ url_for('prontuario') }}">Prontuário</a>
-            <a href="{{ url_for('pacientes') }}">Pacientes</a> 
-            <a href="{{ url_for('estoque') }}" class="active">Estoque</a>
-            <a href="{{ url_for('conversor') }}">Conversor</a> 
-            <a href="{{ url_for('arquivo') }}">Arquivo</a> 
-            
-            {% if session.get('nivel') in ['admin', 'tecnico'] %}
-                <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
-            {% endif %}
-            
-            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+    <header class="main-header" style="background: #181a1f; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+        <h2>📦 Estoque | <span style="font-weight: 100;">PEP</span></h2> 
+        <nav style="display: flex; align-items: center; gap: 20px;">
+            <button id="theme-toggle-btn" title="Alternar Modo de Cor" 
+                    style="background: none; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; padding: 0; border-radius: 8px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; transition: 0.3s; color: inherit;">
+                <span id="theme-icon" class="theme-icon-minimal" style="font-size: 1.2rem;"></span>
+            </button>
+            <a href="{{ url_for('dashboard') }}" style="text-decoration: none; color: inherit;">Home</a>
+            <a href="{{ url_for('sistema') }}" style="text-decoration: none; color: #61afef; font-weight: bold;">Sistema</a>
+            <a href="{{ url_for('logout') }}" style="color: #e06c75; font-weight: bold; text-decoration: none;">Sair</a>
         </nav>
     </header>
 
-    <main class="estoque-container">
+    <main class="estoque-container" style="padding: 20px;">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="flash-messages">
@@ -55,7 +55,9 @@
                     <th>Qtd Disponível</th>
                     <th>Unidade</th>
                     <th>Última Alteração</th>
-                    <th>Ações</th>
+                    {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                        <th>Ações</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -70,70 +72,103 @@
                             <strong>Por:</strong> {{ item.usuario_ultima_alteracao or 'Sistema' }}
                         </small>
                     </td>
+                    {% if session.get('nivel') in ['admin', 'tecnico'] %}
                     <td>
-                        {% if session.get('nivel') in ['admin', 'tecnico'] %}
                         <button class="btn-editar" onclick="abrirModalEdicao('{{ item.id }}', '{{ item.nome_medicamento }}', '{{ item.quantidade }}', '{{ item.unidade }}')">
                             ✏️ Editar
                         </button>
-                        {% endif %}
                     </td>
+                    {% endif %}
                 </tr>
-                {% else %}
-                <tr><td colspan="5" style="text-align: center;">Vazio.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </main>
 
-    <div id="modalAdd" class="modal">
-        <div class="modal-content card">
-            <span class="close-modal" onclick="fecharModal('modalAdd')">&times;</span>
+    <div id="modalAdd" class="modal" style="display:none; position:fixed; z-index:1001; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6);">
+        <div class="modal-content card" style="margin:10% auto; width:400px; padding:20px; position:relative;">
+            <span class="close-modal" onclick="fecharModal('modalAdd')" style="position:absolute; right:15px; cursor:pointer; font-size:24px;">&times;</span>
             <h4>📥 Alimentar Estoque</h4>
             <form action="{{ url_for('salvar_estoque') }}" method="POST" class="grid-form">
                 <input type="text" name="nome" required placeholder="Medicamento">
-                <input type="number" name="quantidade" required min="1" placeholder="Quantidade a SOMAR">
+                <input type="number" name="quantidade" required min="1" placeholder="Qtd a somar">
                 <select name="unidade" required>
-                    <option value="UN">UN</option><option value="MG">MG</option><option value="ML">ML</option><option value="FR">FR</option>
+                    <option value="UN">UN</option><option value="MG">MG</option><option value="ML">ML</option>
                 </select>
-                <button type="submit" class="btn-save">Confirmar Entrada</button>
+                <button type="submit" class="btn-save" style="margin-top:15px; width:100%;">Confirmar Entrada</button>
             </form>
         </div>
     </div>
 
-    <div id="modalEdit" class="modal">
-        <div class="modal-content card">
-            <span class="close-modal" onclick="fecharModal('modalEdit')">&times;</span>
+    <div id="modalEdit" class="modal" style="display:none; position:fixed; z-index:1001; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6);">
+        <div class="modal-content card" style="margin:10% auto; width:400px; padding:20px; position:relative;">
+            <span class="close-modal" onclick="fecharModal('modalEdit')" style="position:absolute; right:15px; cursor:pointer; font-size:24px;">&times;</span>
             <h4>✏️ Corrigir Registro</h4>
             <form id="formEditEstoque" method="POST" class="grid-form">
+                <label>Nome:</label>
                 <input type="text" name="nome_medicamento" id="edit_nome" required>
+                <label>Quantidade:</label>
                 <input type="number" name="quantidade" id="edit_qtd" required>
+                <label>Unidade:</label>
                 <input type="text" name="unidade" id="edit_unidade" required>
-                <button type="submit" class="btn-save">Salvar Correção</button>
+                <button type="submit" class="btn-save" style="margin-top:15px; width:100%;">Salvar Correção</button>
             </form>
         </div>
     </div>
 
     <script>
-        function abrirModalAdd() { document.getElementById('modalAdd').style.display = 'block'; }
-        
+        const themeToggleBtn = document.getElementById('theme-toggle-btn');
+        const themeIcon = document.getElementById('theme-icon');
+
+        function refreshUI(isDark) {
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+                themeIcon.innerHTML = '&#9728;';
+                themeIcon.style.color = '#ffcc00';
+            } else {
+                document.body.classList.remove('dark-mode');
+                themeIcon.innerHTML = '&#9789;';
+                themeIcon.style.color = '#333';
+            }
+        }
+
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        refreshUI(savedTheme === 'dark');
+
+        themeToggleBtn.addEventListener('click', () => {
+            const isNowDark = document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+            refreshUI(isNowDark);
+        });
+
+        // FUNÇÕES DOS MODAIS CORRIGIDAS
+        function abrirModalAdd() {
+            document.getElementById('modalAdd').style.display = 'block';
+        }
+
+        function fecharModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
         function abrirModalEdicao(id, nome, qtd, unidade) {
+            // 1. Abre o modal
             document.getElementById('modalEdit').style.display = 'block';
+            
+            // 2. Preenche os campos com os dados da linha
             document.getElementById('edit_nome').value = nome;
             document.getElementById('edit_qtd').value = qtd;
             document.getElementById('edit_unidade').value = unidade;
+            
+            // 3. ATENÇÃO: Ajusta a rota de destino do formulário dinamicamente
             document.getElementById('formEditEstoque').action = "/estoque/editar/" + id;
         }
 
-        function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
-
-        // Tema
-        function toggleTheme() {
-            document.body.classList.toggle('dark-mode');
-            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        // Fechar ao clicar fora do modal
+        window.onclick = function(event) {
+            if (event.target.className === 'modal') {
+                event.target.style.display = 'none';
+            }
         }
-        document.addEventListener('DOMContentLoaded', () => {
-            if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
-        });
     </script>
 </body>
 </html>

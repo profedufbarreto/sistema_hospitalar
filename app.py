@@ -23,6 +23,16 @@ def login_required(f):
 app = Flask(__name__)
 app.secret_key = 'root'
 
+# =============================================================================
+#   Sistema (MANTIDO)
+# =============================================================================
+
+@app.route('/sistema')
+@login_required
+def sistema():
+    # Apenas renderiza a página de hub de módulos
+    return render_template('sistema.html')
+
 # ==============================================================================
 # 🔑 AUTENTICAÇÃO E DASHBOARD
 # ==============================================================================
@@ -68,14 +78,12 @@ def dashboard():
         'prioridade_tendencia': {'verde': [0]*12, 'amarelo': [0]*12, 'vermelho': [0]*12},
         'dias_data': {'labels': [], 'data': []},     
         'movimentacao_mensal': {'labels': ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"], 'entradas': [0]*12, 'altas': [0]*12},
-        # Agora as listas serão preenchidas
         'movimentacao_anual': {'labels': [], 'entradas': [], 'altas': []},
     }
     
     if conn:
         cursor = conn.cursor() 
         try:
-            # (Mantendo suas consultas anteriores de internados, altas 7d, estoque e pv...)
             cursor.execute("SELECT COUNT(*) as total FROM Pacientes WHERE status = 'internado'")
             dados_dashboard['total_internados'] = cursor.fetchone()['total'] or 0
             
@@ -88,8 +96,6 @@ def dashboard():
             cursor.execute("SELECT COUNT(*) as total FROM ProvasDeVida WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)")
             dados_dashboard['provas_vida_ultimas_24h'] = cursor.fetchone()['total'] or 0
 
-            # LÓGICA DO HISTÓRICO ANUAL (O QUE ESTAVA FALTANDO)
-            # Busca os últimos 5 anos para comparar
             sql_anual = """
                 SELECT YEAR(data_entrada) as ano, COUNT(*) as entradas,
                 SUM(CASE WHEN status = 'alta' THEN 1 ELSE 0 END) as altas
@@ -97,15 +103,12 @@ def dashboard():
                 GROUP BY ano ORDER BY ano ASC LIMIT 5
             """
             cursor.execute(sql_anual)
-            resultados_anual = cursor.fetchall()
-            
-            for row in resultados_anual:
+            for row in cursor.fetchall():
                 if row['ano']:
                     dados_dashboard['movimentacao_anual']['labels'].append(str(row['ano']))
                     dados_dashboard['movimentacao_anual']['entradas'].append(row['entradas'])
                     dados_dashboard['movimentacao_anual']['altas'].append(int(row['altas']))
 
-            # Prioridades e Mensal (Mantendo igual ao seu código)
             cursor.execute("SELECT prioridade_atencao, COUNT(*) as total FROM Pacientes WHERE status = 'internado' GROUP BY prioridade_atencao")
             for item in cursor.fetchall():
                 p = (item['prioridade_atencao'] or 'verde').lower()
@@ -115,6 +118,31 @@ def dashboard():
 
             cursor.execute(f"SELECT MONTH(data_entrada) as mes, COUNT(*) as c FROM Pacientes WHERE YEAR(data_entrada) = {current_year} GROUP BY mes")
             for r in cursor.fetchall(): dados_dashboard['movimentacao_mensal']['entradas'][r['mes']-1] = r['c']
+            
+            cursor.execute(f"SELECT MONTH(data_baixa) as mes, COUNT(*) as c FROM Pacientes WHERE status='alta' AND YEAR(data_baixa) = {current_year} GROUP BY mes")
+            for r in cursor.fetchall(): dados_dashboard['movimentacao_mensal']['altas'][r['mes']-1] = r['c']
+
+            # --- ACRÉSCIMO: TENDÊNCIA DE PRIORIDADE ---
+            cursor.execute(f"""
+                SELECT MONTH(data_entrada) as mes, prioridade_atencao, COUNT(*) as c 
+                FROM Pacientes WHERE YEAR(data_entrada) = {current_year} 
+                GROUP BY mes, prioridade_atencao
+            """)
+            for r in cursor.fetchall():
+                mes_idx = r['mes'] - 1
+                prioridade = (r['prioridade_atencao'] or 'verde').lower()
+                if prioridade in dados_dashboard['prioridade_tendencia']:
+                    dados_dashboard['prioridade_tendencia'][prioridade][mes_idx] = r['c']
+
+            # --- ACRÉSCIMO: DIAS MÉDIOS ---
+            cursor.execute("""
+                SELECT usuario_internacao, AVG(DATEDIFF(IFNULL(data_baixa, NOW()), data_entrada)) as media 
+                FROM Pacientes GROUP BY usuario_internacao LIMIT 5
+            """)
+            for r in cursor.fetchall():
+                nome = r['usuario_internacao'] or 'Sistema'
+                dados_dashboard['dias_data']['labels'].append(nome)
+                dados_dashboard['dias_data']['data'].append(round(float(r['media']), 1))
 
         except Exception as e:
             print(f"Erro no dashboard: {e}")
@@ -131,32 +159,25 @@ def api_kpi(tipo, periodo):
     valor = 0
     try:
         if tipo == 'altas':
-            # Mapeamento estendido de períodos
             dias = 7
             if periodo == '15d': dias = 15
             elif periodo == '30d': dias = 30
             elif periodo == 'trimestre': dias = 90
             elif periodo == 'semestre': dias = 180
             elif periodo == 'ano': dias = 365
-            
-            cursor.execute("""
-                SELECT COUNT(*) as total FROM Pacientes 
-                WHERE status = 'alta' AND data_baixa >= DATE_SUB(NOW(), INTERVAL %s DAY)
-            """, (dias,))
+            cursor.execute("SELECT COUNT(*) as total FROM Pacientes WHERE status = 'alta' AND data_baixa >= DATE_SUB(NOW(), INTERVAL %s DAY)", (dias,))
             valor = cursor.fetchone()['total'] or 0
-            
         elif tipo == 'pv':
             horas = 24
             if periodo == '48h': horas = 48
             elif periodo == '92h': horas = 92
             cursor.execute("SELECT COUNT(*) as total FROM ProvasDeVida WHERE data_hora >= DATE_SUB(NOW(), INTERVAL %s HOUR)", (horas,))
             valor = cursor.fetchone()['total'] or 0
-    finally:
-        conn.close()
+    finally: conn.close()
     return jsonify({'valor': valor})
 
 # ==============================================================================
-# 👥 GESTÃO DE USUÁRIOS
+# 👥 GESTÃO DE USUÁRIOS (MANTIDO)
 # ==============================================================================
 
 @app.route('/usuarios')
@@ -217,7 +238,7 @@ def excluir_usuario(user_id):
     return redirect(url_for('gerenciar_usuarios'))
 
 # ==============================================================================
-# 🩺 PACIENTES E PRONTUÁRIO
+# 🩺 PACIENTES E PRONTUÁRIO (MANTIDO E CORRIGIDO)
 # ==============================================================================
 
 @app.route('/pacientes')
@@ -247,10 +268,10 @@ def detalhes_prontuario(paciente_id):
 def prontuario():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT nome_medicamento FROM Estoque WHERE quantidade > 0")
+    cursor.execute("SELECT nome_medicamento FROM Estoque ORDER BY nome_medicamento ASC")
     medicamentos = cursor.fetchall()
     conn.close()
-    return render_template('prontuario_form.html', medicamentos=medicamentos)
+    return render_template('prontuario_form.html', medicamentos=medicamentos, agora=datetime.now().strftime('%Y-%m-%dT%H:%M'))
 
 @app.route('/prontuario/salvar', methods=['POST'])
 @login_required
@@ -258,33 +279,48 @@ def salvar_prontuario():
     dados = request.form
     conn = get_db_connection()
     cursor = conn.cursor()
+    cpf_limpo = dados['cpf'].replace('.', '').replace('-', '')
     sql = """INSERT INTO Pacientes (nome, data_nascimento, cpf, cep, endereco, bairro, data_entrada, 
              procedimento, status, usuario_internacao, prioridade_atencao) 
              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'internado', %s, %s)"""
-    cursor.execute(sql, (dados['nome_paciente'], dados['data_nascimento'], dados['cpf'], dados['cep'], 
+    cursor.execute(sql, (dados['nome_paciente'], dados['data_nascimento'], cpf_limpo, dados['cep'], 
                         dados['endereco'], dados['bairro'], dados['hora_entrada'].replace('T', ' '), 
                         dados['procedimento'], session['usuario'], dados.get('prioridade_atencao', 'verde')))
     conn.commit()
     conn.close()
+    flash("Prontuário salvo com sucesso!", "success")
     return redirect(url_for('pacientes'))
 
 # ==============================================================================
-# ❤️ PROVA DE VIDA, ALTA E ARQUIVO
+# ❤️ PROVA DE VIDA, ALTA E ARQUIVO (MANTIDO)
 # ==============================================================================
 
 @app.route('/prova_vida/<int:paciente_id>', methods=['GET', 'POST'])
 @login_required
 def prova_vida(paciente_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
     if request.method == 'POST':
         dados = request.form
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO ProvasDeVida (paciente_id, data_hora, pressao_arterial, glicose, saturacao, batimentos_cardiacos, quem_efetuou) VALUES (%s, NOW(), %s, %s, %s, %s, %s)", 
-                       (paciente_id, dados['pa'], dados['glicose'], dados['sat'], dados['bpm'], session['usuario']))
+        evolucao = dados.get('evolucao', '')
+        try:
+            cursor.execute("SHOW COLUMNS FROM ProvasDeVida LIKE 'evolucao'")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE ProvasDeVida ADD COLUMN evolucao TEXT")
+                conn.commit()
+        except: pass
+        cursor.execute("""
+            INSERT INTO ProvasDeVida 
+            (paciente_id, data_hora, pressao_arterial, glicose, saturacao, batimentos_cardiacos, evolucao, quem_efetuou) 
+            VALUES (%s, NOW(), %s, %s, %s, %s, %s, %s)
+        """, (paciente_id, dados['pa'], dados['glicose'], dados['sat'], dados['bpm'], evolucao, session['usuario']))
         conn.commit()
         conn.close()
         return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id))
-    return render_template('prova_vida_form.html', paciente_id=paciente_id)
+    cursor.execute("SELECT id, nome FROM Pacientes WHERE id = %s", (paciente_id,))
+    paciente = cursor.fetchone()
+    conn.close()
+    return render_template('prova_vida_form.html', paciente=paciente)
 
 @app.route('/paciente/alta_form/<int:paciente_id>')
 @login_required
@@ -292,14 +328,10 @@ def alta_form(paciente_id):
     if session['nivel'] not in ['admin', 'tecnico']: return redirect(url_for('pacientes'))
     conn = get_db_connection()
     cursor = conn.cursor()
-    # ADICIONADO: data_entrada para evitar o UndefinedError no Jinja2
     cursor.execute("SELECT id, nome, data_entrada FROM Pacientes WHERE id = %s", (paciente_id,))
     paciente = cursor.fetchone()
     conn.close()
-    return render_template('alta_form.html', 
-                           paciente=paciente, 
-                           agora=datetime.now().strftime('%Y-%m-%dT%H:%M'), 
-                           usuario_logado=session['usuario'])
+    return render_template('alta_form.html', paciente=paciente, agora=datetime.now().strftime('%Y-%m-%dT%H:%M'), usuario_logado=session['usuario'])
 
 @app.route('/paciente/alta/<int:paciente_id>', methods=['POST'])
 @login_required
@@ -324,7 +356,7 @@ def arquivo():
     return render_template('arquivo.html', pacientes=pacientes_alta)
 
 # ==============================================================================
-# 📦 ESTOQUE
+# 📦 ESTOQUE (MANTIDO E PROTEGIDO)
 # ==============================================================================
 
 @app.route('/estoque')
@@ -340,7 +372,9 @@ def estoque():
 @app.route('/estoque/salvar', methods=['POST'])
 @login_required
 def salvar_estoque():
-    if session['nivel'] not in ['admin', 'tecnico', 'enfermeiro']: return "Negado", 403
+    if session['nivel'] not in ['admin', 'tecnico']:
+        flash("Acesso negado: Apenas Administradores e Técnicos podem alimentar o estoque.", "danger")
+        return redirect(url_for('estoque'))
     dados = request.form
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -357,7 +391,9 @@ def salvar_estoque():
 @app.route('/estoque/editar/<int:item_id>', methods=['POST'])
 @login_required
 def editar_estoque(item_id):
-    if session['nivel'] not in ['admin', 'tecnico']: return "Negado", 403
+    if session['nivel'] not in ['admin', 'tecnico']:
+        flash("Acesso negado.", "danger")
+        return redirect(url_for('estoque'))
     dados = request.form
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -378,7 +414,6 @@ def conversor(): return render_template('conversor.html')
 def provas_vida_geral():
     conn = get_db_connection()
     cursor = conn.cursor()
-    # Busca todas as provas de vida com o nome do paciente relacionado
     sql = """
         SELECT pv.*, p.nome as nome_paciente 
         FROM ProvasDeVida pv

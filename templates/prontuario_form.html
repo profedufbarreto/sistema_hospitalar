@@ -4,135 +4,119 @@
     <meta charset="UTF-8">
     <title>Novo Prontuário | PEP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    </head>
-<body>
+    <style>
+        .theme-icon-minimal { font-family: "Segoe UI Symbol", sans-serif; font-weight: 100; }
+        .nav-link { text-decoration: none; color: inherit; transition: opacity 0.2s; }
+        .nav-link:hover { opacity: 0.7; }
+        .medication-item {
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background: rgba(255,255,255,0.02);
+        }
+    </style>
+</head>
+<body class="dark-mode">
     
-    <header class="main-header">
-        <h2>Registro de Nova Internação</h2>
-        <nav style="display: flex; align-items: center;">
-            
-            <div class="theme-switcher">
-                <input type="checkbox" id="theme-toggle" title="Alternar Modo de Visualização">
-                <label for="theme-toggle" class="theme-icon-label"></label>
-            </div>
-            <a href="{{ url_for('dashboard') }}">Dashboard</a>
-            <a href="{{ url_for('prontuario') }}" class="active">Prontuário</a> 
-            <a href="{{ url_for('pacientes') }}">Pacientes</a> 
-            <a href="{{ url_for('estoque') }}">Estoque</a>
-            <a href="{{ url_for('conversor') }}">Conversor</a> 
-            <a href="{{ url_for('arquivo') }}">Arquivo</a> 
-            {% if session.get('nivel') in ['admin', 'tecnico'] %}
-                <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
-            {% endif %}
-            
-            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+    <header class="main-header" style="background: #181a1f; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+        <h2>📝 Prontuário | <span style="font-weight: 100;">PEP</span></h2>
+        <nav style="display: flex; align-items: center; gap: 20px;">
+            <button id="theme-toggle" class="theme-toggle-btn" style="background: none; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; width: 38px; height: 38px; cursor: pointer; color: inherit;">
+                <span id="theme-icon" class="theme-icon-minimal" style="font-size: 1.2rem;"></span>
+            </button>
+            <a href="{{ url_for('dashboard') }}" class="nav-link">Home</a>
+            <a href="{{ url_for('sistema') }}" class="nav-link" style="color: #61afef; font-weight: bold;">Sistema</a>
+            <a href="{{ url_for('logout') }}" class="nav-link" style="color: #e06c75; font-weight: bold;">Sair</a>
         </nav>
     </header>
     
-    <main class="content-wrapper">
+    <main class="content-wrapper" style="padding: 20px;">
         <div class="prontuario-form-container">
-            
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
-                    <div class="flash-messages">
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }}">{{ message }}</div>
-                        {% endfor %}
-                    </div>
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
                 {% endif %}
             {% endwith %}
 
             <h3>Informações do Paciente</h3>
-            
             <form action="{{ url_for('salvar_prontuario') }}" method="POST">
-                
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="nome_paciente">Nome Completo:</label>
-                        <input type="text" id="nome_paciente" name="nome_paciente" required>
+                        <label>Nome Completo:</label>
+                        <input type="text" name="nome_paciente" placeholder="Ex: João da Silva" required>
                     </div>
                     <div class="form-group">
-                        <label for="data_nascimento">Data de Nascimento:</label>
-                        <input type="date" id="data_nascimento" name="data_nascimento" required>
+                        <label>Data de Nascimento:</label>
+                        <input type="date" name="data_nascimento" required>
                     </div>
                     <div class="form-group">
-                        <label for="hora_entrada">Data e Hora da Internação:</label>
-                        <input type="datetime-local" id="hora_entrada" name="hora_entrada" value="{{ agora }}" required>
+                        <label>Data/Hora Internação:</label>
+                        <input type="datetime-local" name="hora_entrada" value="{{ agora }}" required>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group" style="flex: 1;">
-                        <label for="cpf">CPF:</label>
+                        <label>CPF:</label>
                         <input type="text" id="cpf" name="cpf" placeholder="000.000.000-00" maxlength="14" required>
                     </div>
-                    <div class="form-group" style="flex: 2;"></div> 
-                </div> 
+                    <div class="form-group" style="flex: 1;">
+                        <label>CEP:</label>
+                        <input type="text" id="cep" name="cep" placeholder="95780-000" maxlength="9">
+                    </div>
+                </div>
 
                 <div class="form-row">
-                    <div class="form-group" style="flex: 1;">
-                        <label for="cep">CEP:</label>
-                        <input type="text" id="cep" name="cep" placeholder="Ex: 95780-000" maxlength="9">
-                    </div>
                     <div class="form-group" style="flex: 3;">
-                        <label for="endereco">Rua e Número:</label>
-                        <input type="text" id="endereco" name="endereco" placeholder="Rua..." required>
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label for="numero">Número:</label>
-                        <input type="text" id="numero" name="numero" placeholder="Nº">
+                        <label>Endereço:</label>
+                        <input type="text" id="endereco" name="endereco" placeholder="Rua, Avenida..." required>
                     </div>
                     <div class="form-group" style="flex: 2;">
-                        <label for="bairro">Bairro:</label>
-                        <input type="text" id="bairro" name="bairro" required>
+                        <label>Bairro:</label>
+                        <input type="text" id="bairro" name="bairro" placeholder="Centro" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Nº:</label>
+                        <input type="text" id="numero" name="numero" placeholder="123">
                     </div>
                 </div>
                 
-                <div class="section-header">
-                    <h3>Dados Clínicos, Triagem e Procedimento</h3>
-                </div>
-
+                <div class="section-header"><h3>Dados Clínicos e Triagem</h3></div>
+                
                 <div class="form-row">
-                    <div class="form-group" style="flex: 1;">
-                        <label for="cid_10">CID-10 Principal (Diagnóstico):</label>
-                        <input type="text" id="cid_10" name="cid_10" placeholder="Ex: I10 (Hipertensão)" maxlength="10">
+                    <div class="form-group">
+                        <label>CID-10 Principal:</label>
+                        <input type="text" name="cid_10" placeholder="Ex: I10 (Hipertensão)">
                     </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label for="prioridade_atencao">Prioridade de Atenção (Triagem):</label>
-                        <select id="prioridade_atencao" name="prioridade_atencao" required>
+                    <div class="form-group">
+                        <label>Prioridade de Atenção:</label>
+                        <select name="prioridade_atencao" required>
                             <option value="verde">Verde (Não Urgente)</option>
-                            <option value="amarelo">Amarelo (Atenção/Urgência)</option>
-                            <option value="vermelho">Vermelho (Emergência/Urgente)</option>
+                            <option value="amarelo">Amarelo (Atenção / Urgência)</option>
+                            <option value="vermelho">Vermelho (Emergência)</option>
                         </select>
                     </div>
                 </div>
-                
-                <div class="form-row">
-                    <div class="form-group" style="flex: 1;">
-                        <label for="procedimento">Procedimento/Motivo da Internação:</label>
-                        <input type="text" id="procedimento" name="procedimento" placeholder="Ex: Cirurgia Apendicite, Pneumonia, etc." required>
-                    </div>
+
+                <div class="form-group">
+                    <label>Procedimento / Motivo:</label>
+                    <input type="text" name="procedimento" placeholder="Ex: Cirurgia Geral, Pneumonia, Crise Hipertensiva" required>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group" style="flex: 100%;">
-                        <label for="observacoes_entrada">Observações / Anamnese Inicial (Estado Clínico):</label>
-                        <textarea id="observacoes_entrada" name="observacoes_entrada" rows="3" placeholder="Ex: Paciente orientado, eupneico, dor abdominal aguda (EVA 8)."></textarea>
-                    </div>
+                <div class="form-group">
+                    <label>Observações / Anamnese Inicial:</label>
+                    <textarea name="observacoes_entrada" rows="3" placeholder="Relate o estado inicial do paciente, alergias conhecidas e queixas principais..."></textarea>
                 </div>
 
-                <div class="section-header" style="margin-top: 30px;">
-                    <h3>Administração Inicial de Medicamento</h3>
-                </div>
-                
-                <div id="medication-container">
-                    </div>
-
+                <div class="section-header"><h3>Administração Inicial de Medicamento</h3></div>
+                <div id="medication-container"></div>
                 <button type="button" id="add-med-btn" class="add-med-button">Adicionar outro Medicamento (+)</button>
 
-
                 <div class="action-buttons">
-                    <button type="submit" class="btn-login">Salvar Prontuário</button>
+                    <button type="submit" class="btn-login" style="padding: 15px 30px;">Salvar Prontuário</button>
                 </div>
             </form>
         </div>
@@ -140,276 +124,57 @@
 
     <template id="medication-template">
         <div class="medication-item">
-            <div class="form-row" style="flex-grow: 1;">
+            <div class="form-row">
                 <div class="form-group" style="flex: 3;">
-                    <label for="medicamento_entrada_NEW_INDEX">Medicamento Administrado:</label>
-                    <select id="medicamento_entrada_NEW_INDEX" 
-                            name="medicamento_entrada[]" 
-                            class="medicamento-select">
-                        <option value="">Nenhum/Aguardando</option>
+                    <label>Medicamento:</label>
+                    <select name="medicamento_entrada[]" class="medicamento-select">
+                        <option value="">Selecione o medicamento disponível...</option>
                         {% for med in medicamentos %}
                             <option value="{{ med.nome_medicamento }}">{{ med.nome_medicamento }}</option>
                         {% endfor %}
-                        <option value="outro">Outro (Especificar)</option>
+                        <option value="outro">Outro (Especificar manualmente)</option>
                     </select>
                 </div>
-                
                 <div class="form-group" style="flex: 1;">
-                    <label for="dose_NEW_INDEX">Dose (Unidades):</label>
-                    <input type="number" 
-                            step="0.01" 
-                            id="dose_NEW_INDEX" 
-                            name="dose[]" 
-                            placeholder="Ex: 500">
+                    <label>Dose:</label>
+                    <input type="number" step="0.01" name="dose[]" placeholder="Qtd">
                 </div>
-
-                <div class="form-group checkbox-sn" style="flex: 1; align-self: flex-end; margin-bottom: 0;">
-                    <input type="checkbox" 
-                            id="se_necessario_NEW_INDEX" 
-                            name="se_necessario_NEW_INDEX" 
-                            value="1"
-                            class="sn-checkbox">
-                    <label for="se_necessario_NEW_INDEX" style="margin-bottom: 0;">Se Necessário (S/N)</label>
+                <div class="form-group checkbox-sn" style="flex: 1; align-self: flex-end; display: flex; align-items: center; gap: 5px;">
+                    <input type="checkbox" class="sn-checkbox" onchange="updateSNValue(this)">
+                    <label>S/N</label>
                     <input type="hidden" name="se_necessario[]" value="0" class="sn-hidden-input">
                 </div>
             </div>
-
-            <div class="form-row outro-medicamento-group" style="display: none; flex-basis: 100%; margin-top: 10px;">
-                <div class="form-group" style="flex: 1;">
-                    <label for="outro_medicamento_nome_NEW_INDEX">Nome do Novo Medicamento:</label>
-                    <input type="text" 
-                            id="outro_medicamento_nome_NEW_INDEX" 
-                            name="outro_medicamento_nome[]" 
-                            placeholder="Nome Completo">
-                </div>
+            <div class="outro-medicamento-group" style="display: none; margin-top: 10px;">
+                <label>Nome do Medicamento:</label>
+                <input type="text" name="outro_medicamento_nome[]" placeholder="Digite o nome completo do remédio">
             </div>
-            
-            <button type="button" class="remove-med-button" onclick="removeMedicationItem(this)">-</button>
+            <button type="button" class="remove-med-button" onclick="removeMedicationItem(this)">Remover (-)</button>
         </div>
     </template>
 
-
+    <script src="{{ url_for('static', filename='js/prontuario.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/cep_autofill.js') }}"></script>
     <script>
-        let medIndex = 0; 
-
-        // =========================================================
-        // LÓGICA MODO CLARO/ESCURO
-        // =========================================================
-        function updateThemeIcon() {
-            const toggle = document.getElementById('theme-toggle');
-            const label = document.querySelector('.theme-icon-label');
-            if (toggle && label) {
-                // Se o modo escuro estiver ativo (checkbox marcado), mostra o SOL (para clicar e clarear)
-                if (toggle.checked) {
-                    label.setAttribute('data-icon', '🌞');
-                } else {
-                    // Se o modo claro estiver ativo (checkbox desmarcado), mostra a LUA (para clicar e escurecer)
-                    label.setAttribute('data-icon', '🌙');
-                }
-            }
+        // Tema e Máscara CPF integrados
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        function refreshUI(isDark) {
+            document.body.classList.toggle('dark-mode', isDark);
+            themeIcon.innerHTML = isDark ? '&#9728;' : '&#9789;';
+            themeIcon.style.color = isDark ? '#ffcc00' : '#333';
         }
-        
-        function initTheme() {
-            const toggle = document.getElementById('theme-toggle');
-            if (!toggle) return;
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        refreshUI(savedTheme === 'dark');
+        themeToggle.addEventListener('click', () => {
+            const isNowDark = document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+            refreshUI(isNowDark);
+        });
 
-            const savedTheme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-            if (savedTheme === 'dark' || (savedTheme === null && prefersDark)) {
-                document.body.classList.add('dark-mode');
-                toggle.checked = true;
-            } else {
-                document.body.classList.remove('dark-mode');
-                toggle.checked = false;
-            }
-            updateThemeIcon(); // Inicializa o ícone correto
-        }
-
-        function toggleTheme() {
-            const toggle = document.getElementById('theme-toggle');
-            if (!toggle) return;
-
-            const isDarkMode = toggle.checked;
-            
-            if (isDarkMode) {
-                document.body.classList.add('dark-mode');
-                localStorage.setItem('theme', 'dark');
-            } else {
-                document.body.classList.remove('dark-mode');
-                localStorage.setItem('theme', 'light');
-            }
-            updateThemeIcon(); // Atualiza o ícone após a troca
-        }
-
-        // =========================================================
-        // LÓGICA DE MÚLTIPLOS MEDICAMENTOS
-        // =========================================================
-        
-        function toggleOutro(selectElement) {
-            const itemContainer = selectElement.closest('.medication-item');
-            if (!itemContainer) return;
-
-            const outroGroup = itemContainer.querySelector('.outro-medicamento-group');
-            if (outroGroup) {
-                if (selectElement.value === 'outro') {
-                    outroGroup.style.display = 'flex';
-                } else {
-                    outroGroup.style.display = 'none';
-                    const inputOutro = outroGroup.querySelector('input[name="outro_medicamento_nome[]"]');
-                    if (inputOutro) {
-                        inputOutro.value = '';
-                    }
-                }
-            }
-        }
-        
-        function setupCheckboxLogic(itemContainer) {
-            const checkbox = itemContainer.querySelector('.sn-checkbox');
-            const snInput = itemContainer.querySelector('.sn-hidden-input');
-            
-            if (checkbox && snInput) {
-                checkbox.addEventListener('change', function() {
-                    if (this.checked) {
-                        snInput.disabled = true; 
-                    } else {
-                        snInput.disabled = false;
-                    }
-                });
-                
-                if (checkbox.checked) {
-                    snInput.disabled = true;
-                }
-            }
-        }
-
-        function addMedicationItem(isInitial = false) {
-            const template = document.getElementById('medication-template');
-            const container = document.getElementById('medication-container');
-            const clone = template.content.cloneNode(true);
-            
-            const htmlContent = clone.firstElementChild.innerHTML.replace(/NEW_INDEX/g, medIndex);
-            clone.firstElementChild.innerHTML = htmlContent;
-
-            const removeBtn = clone.querySelector('.remove-med-button');
-            if (removeBtn) {
-                if (isInitial) {
-                    removeBtn.style.display = 'none';
-                } else {
-                    removeBtn.style.display = 'inline-block';
-                }
-            }
-
-            container.appendChild(clone);
-            
-            setupCheckboxLogic(container.lastElementChild);
-            
-            const newSelect = container.lastElementChild.querySelector('.medicamento-select');
-            if(newSelect) {
-                 newSelect.addEventListener('change', function() {
-                    toggleOutro(this);
-                });
-            }
-
-            medIndex++;
-        }
-        
-        function removeMedicationItem(button) {
-            const item = button.closest('.medication-item');
-            if (item) {
-                item.remove();
-            }
-        }
-        
-        // =========================================================
-        // MÁSCARAS E CEP
-        // =========================================================
-
-        function setupMasksAndCep() {
-            // Lógica de máscara de CPF
-            const cpfInput = document.getElementById('cpf');
-            if (cpfInput) {
-                cpfInput.addEventListener('input', function(e) {
-                    let value = e.target.value.replace(/\D/g, ''); 
-                    let formattedValue = '';
-
-                    if (value.length > 0) { formattedValue = value.substring(0, 3); }
-                    if (value.length >= 4) { formattedValue += '.' + value.substring(3, 6); }
-                    if (value.length >= 7) { formattedValue += '.' + value.substring(6, 9); }
-                    if (value.length >= 10) { formattedValue += '-' + value.substring(9, 11); }
-                    
-                    if (value.length > 11) { formattedValue = formattedValue.substring(0, 14); }
-                    
-                    e.target.value = formattedValue;
-                });
-            }
-
-            // Lógica de Busca de Endereço via CEP (ViaCEP API)
-            const cepInput = document.getElementById('cep');
-            const enderecoInput = document.getElementById('endereco');
-            const bairroInput = document.getElementById('bairro');
-            const numeroInput = document.getElementById('numero');
-            
-            if (cepInput && enderecoInput && bairroInput) {
-                cepInput.addEventListener('blur', function() {
-                    let cep = cepInput.value.replace(/\D/g, ''); 
-
-                    if (cep.length !== 8) { return; }
-                    
-                    enderecoInput.value = '... buscando ...';
-                    bairroInput.value = '';
-
-                    fetch(`https://viacep.com.br/ws/${cep}/json/`)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (!("erro" in data)) {
-                                enderecoInput.value = data.logradouro;
-                                bairroInput.value = data.bairro;
-                                
-                                if (numeroInput) {
-                                    numeroInput.focus();
-                                }
-                                
-                            } else {
-                                enderecoInput.value = '';
-                                bairroInput.value = '';
-                                alert("CEP não encontrado. Digite o endereço manualmente.");
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Erro na API ViaCEP:', error);
-                            enderecoInput.value = '';
-                            bairroInput.value = '';
-                            alert("Erro ao consultar a API de CEP.");
-                        });
-                });
-            }
-        }
-
-
-        // =========================================================
-        // INICIALIZAÇÃO GERAL
-        // =========================================================
-        document.addEventListener('DOMContentLoaded', function() {
-            
-            // 1. Inicializa o tema (Modo Claro/Escuro)
-            initTheme(); 
-            const themeToggleElement = document.getElementById('theme-toggle');
-            if (themeToggleElement) {
-                themeToggleElement.addEventListener('change', toggleTheme);
-            }
-            
-            // 2. Inicializa o primeiro item de medicamento e o botão de adicionar
-            addMedicationItem(true); 
-            const addMedBtn = document.getElementById('add-med-btn');
-            if (addMedBtn) {
-                addMedBtn.addEventListener('click', function() {
-                    addMedicationItem(false);
-                });
-            }
-
-            // 3. Inicializa máscaras e lógica de CEP
-            setupMasksAndCep();
+        document.getElementById('cpf').addEventListener('input', function (e) {
+            let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,3})(\d{0,2})/);
+            e.target.value = !x[2] ? x[1] : x[1] + '.' + x[2] + (x[3] ? '.' + x[3] : '') + (x[4] ? '-' + x[4] : '');
         });
     </script>
 </body>

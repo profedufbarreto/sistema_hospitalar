@@ -4,34 +4,40 @@
     <meta charset="UTF-8">
     <title>Detalhes do Prontuário | {{ paciente.nome }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .theme-icon-minimal { font-family: "Segoe UI Symbol", sans-serif; font-weight: 100; user-select: none; }
+        .nav-link { text-decoration: none; color: inherit; transition: opacity 0.2s; }
+        
+        /* Estilo para destacar a Evolução */
+        .pv-evolucao {
+            background: rgba(97, 175, 239, 0.05);
+            border-left: 4px solid #61afef;
+            padding: 10px 15px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-style: italic;
+            color: var(--text-primary);
+        }
+        .dark-mode .pv-evolucao { background: rgba(255, 255, 255, 0.05); }
+    </style>
 </head>
-<body>
+<body class="dark-mode">
     
-    <header class="main-header">
-        <h2>Dashboard | PEP</h2> 
-        <nav style="display: flex; align-items: center;">
+    <header class="main-header" style="background: #181a1f; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+        <h2>🔍 Prontuário | <span style="font-weight: 100;">PEP</span></h2> 
+        <nav style="display: flex; align-items: center; gap: 20px;">
+            <button id="theme-toggle" class="theme-toggle-btn" title="Alternar Modo" 
+                    style="background: none; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; border-radius: 8px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; transition: 0.3s; color: inherit;">
+                <span id="theme-icon" class="theme-icon-minimal" style="font-size: 1.2rem;"></span>
+            </button>
         
-            <div class="theme-switcher">
-                <input type="checkbox" id="theme-toggle" title="Alternar Modo de Visualização">
-                <label for="theme-toggle" class="theme-icon-label"></label>
-            </div>
-        
-        <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
-        <a href="{{ url_for('prontuario') }}">Prontuário</a>
-        <a href="{{ url_for('pacientes') }}">Pacientes</a> 
-        <a href="{{ url_for('estoque') }}">Estoque</a>
-        <a href="{{ url_for('conversor') }}">Conversor</a> 
-        <a href="{{ url_for('arquivo') }}">Arquivo</a> 
-        
-        {% if session.get('nivel') in ['admin', 'tecnico'] %}
-            <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
-        {% endif %}
-        
-        <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+            <a href="{{ url_for('dashboard') }}" class="nav-link">Home</a>
+            <a href="{{ url_for('sistema') }}" class="nav-link" style="color: #61afef; font-weight: bold;">Sistema</a>
+            <a href="{{ url_for('logout') }}" class="nav-link" style="color: #e06c75; font-weight: bold;">Sair</a>
         </nav>
     </header>
 
-    <main class="detalhes-container">
+    <main class="detalhes-container" style="padding: 20px; max-width: 1000px; margin: 0 auto;">
         
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -43,45 +49,38 @@
             {% endif %}
         {% endwith %}
 
-        {% if paciente.status == 'internado' and session.get('nivel') in ['admin', 'tecnico'] %}
-        <div class="action-buttons" style="justify-content: flex-end; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 class="section-header" style="margin: 0; flex-grow: 1;">Dados do Paciente e Internação</h3>
+            
+            {% if paciente.status == 'internado' and session.get('nivel') in ['admin', 'tecnico'] %}
             <a href="{{ url_for('alta_form', paciente_id=paciente.id) }}" 
-                class="btn-logout" 
-                style="background-color: #dc3545; color: white;">
+               class="btn-logout" 
+               style="background-color: #dc3545; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: bold;">
                 Registrar Alta Médica
             </a>
+            {% endif %}
         </div>
-        {% endif %}
         
-        <h3 class="section-header">Dados do Paciente e Internação</h3>
-        
-        <div class="data-item"><strong>Nome:</strong> {{ paciente.nome }}</div>
-
-        <div class="data-item">
-            <strong>CPF:</strong> 
-            <span class="value">
-                {% set cpf_raw = paciente.cpf | string %}
-                {% if cpf_raw and cpf_raw|length == 11 %}
-                    {{ cpf_raw[:3] }}.{{ cpf_raw[3:6] }}.{{ cpf_raw[6:9] }}-{{ cpf_raw[9:11] }}
-                {% else %}
-                    {{ paciente.cpf if paciente.cpf else 'N/A' }}
-                {% endif %}
-            </span>
-        </div>
-        <div class="data-item"><strong>Nascimento:</strong> {{ paciente.data_nascimento.strftime('%d/%m/%Y') }}</div>
-        
-        <div class="data-item"><strong>Usuário da Internação:</strong> {{ paciente.usuario_internacao | default('N/A') }}</div>
-        
-        <div class="data-item"><strong>Entrada:</strong> {{ paciente.data_entrada.strftime('%d/%m/%Y %H:%M') }}</div>
-        
-        <div class="data-item"><strong>Alta (Baixa):</strong> {{ paciente.data_baixa.strftime('%d/%m/%Y %H:%M') if paciente.data_baixa else 'PENDENTE' }}</div>
-        <div class="data-item"><strong>Profissional de Baixa:</strong> {{ paciente.nome_baixa | default('None') }}</div>
-        
-        <div class="data-item"><strong>Endereço:</strong> {{ paciente.endereco }}, {{ paciente.bairro }} (CEP: {{ paciente.cep }})</div>
-        
-        <div class="data-item procedimento-data-item">
-            <strong>Procedimento/Motivo:</strong> 
-            <span class="procedimento-texto">{{ paciente.procedimento }}</span>
+        <div class="card" style="padding: 20px; margin-bottom: 30px;">
+            <div class="data-item"><strong>Nome:</strong> {{ paciente.nome }}</div>
+            <div class="data-item">
+                <strong>CPF:</strong> 
+                <span class="value">
+                    {% set cpf_raw = paciente.cpf | string %}
+                    {% if cpf_raw and cpf_raw|length == 11 %}
+                        {{ cpf_raw[:3] }}.{{ cpf_raw[3:6] }}.{{ cpf_raw[6:9] }}-{{ cpf_raw[9:11] }}
+                    {% else %}
+                        {{ paciente.cpf if paciente.cpf else 'N/A' }}
+                    {% endif %}
+                </span>
+            </div>
+            <div class="data-item"><strong>Nascimento:</strong> {{ paciente.data_nascimento.strftime('%d/%m/%Y') }}</div>
+            <div class="data-item"><strong>Entrada:</strong> {{ paciente.data_entrada.strftime('%d/%m/%Y %H:%M') }}</div>
+            <div class="data-item"><strong>Status:</strong> <span class="badge nivel-{{ 'verde' if paciente.status == 'internado' else 'vermelho' }}">{{ paciente.status | upper }}</span></div>
+            <div class="data-item"><strong>Endereço:</strong> {{ paciente.endereco }}, {{ paciente.bairro }} (CEP: {{ paciente.cep }})</div>
+            <div class="data-item" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.1);">
+                <strong>Procedimento/Motivo:</strong> {{ paciente.procedimento }}
+            </div>
         </div>
 
         <h3 class="section-header" style="border-bottom-color: #28a745;">Histórico de Provas de Vida ({{ provas_vida | length }} Registros)</h3>
@@ -89,27 +88,58 @@
         {% if provas_vida %}
         <div class="prova-vida-list">
             {% for pv in provas_vida %}
-            <div class="prova-vida-item">
-                <div class="pv-data">
-                    <span>📅 **Data/Hora:** {{ pv.data_hora.strftime('%d/%m/%Y %H:%M') }}</span>
-                    <span>👨‍⚕️ **Efetuado por:** {{ pv.quem_efetuou | default('N/A') }}</span>
-                    <span>🩸 **PA:** {{ pv.pressao_arterial }} mmHg</span>
-                    <span>❤️ **FC:** {{ pv.batimentos_cardiacos }} bpm</span>
-                    <span>🦠 **Glicose:** {{ pv.glicose if pv.glicose else 'N/A' }} mg/dL</span>
-                    <span>💨 **Saturação:** {{ pv.saturacao if pv.saturacao else 'N/A' }} %</span>
+            <div class="prova-vida-item card" style="margin-bottom: 15px; padding: 15px; border-left: 5px solid #28a745;">
+                <div class="pv-data" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <span>📅 <strong>Data/Hora:</strong> {{ pv.data_hora.strftime('%d/%m/%Y %H:%M') }}</span>
+                    <span>👨‍⚕️ <strong>Profissional:</strong> {{ pv.quem_efetuou | default('N/A') }}</span>
+                    <span>🩸 <strong>PA:</strong> {{ pv.pressao_arterial }}</span>
+                    <span>❤️ <strong>FC:</strong> {{ pv.batimentos_cardiacos }} bpm</span>
+                    <span>💉 <strong>Glicose:</strong> {{ pv.glicose }} mg/dL</span>
+                    <span>💨 <strong>SpO2:</strong> {{ pv.saturacao }}%</span>
                 </div>
+
+                {% if pv.evolucao %}
+                <div class="pv-evolucao">
+                    <strong>📝 Evolução:</strong> {{ pv.evolucao }}
+                </div>
+                {% endif %}
+
                 {% if pv.observacoes %}
-                <p class="pv-obs">⚠️ **Obs:** {{ pv.observacoes }}</p>
+                <p class="pv-obs" style="margin-top: 10px; color: #ffc107;">⚠️ <strong>Obs antiga:</strong> {{ pv.observacoes }}</p>
                 {% endif %}
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p>Nenhuma prova de vida registrada para este paciente.</p>
+        <p class="card" style="padding: 20px; text-align: center; opacity: 0.6;">Nenhuma prova de vida registrada.</p>
         {% endif %}
 
-        <h3 class="section-header" style="border-bottom-color: #ffc107;">Histórico de Administração de Medicamentos</h3>
-        <p>A listagem dos medicamentos administrados precisaria de uma consulta à tabela `AdministracaoMedicamentos`.</p>
     </main>
+
+    <script>
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+
+        function refreshUI(isDark) {
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+                themeIcon.innerHTML = '&#9728;';
+                themeIcon.style.color = '#ffcc00';
+            } else {
+                document.body.classList.remove('dark-mode');
+                themeIcon.innerHTML = '&#9789;';
+                themeIcon.style.color = '#333';
+            }
+        }
+
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        refreshUI(savedTheme === 'dark');
+
+        themeToggle.addEventListener('click', () => {
+            const isNowDark = document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+            refreshUI(isNowDark);
+        });
+    </script>
 </body>
 </html>

@@ -2,109 +2,90 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Prova de Vida | Sinais Vitais</title>
+    <title>Prova de Vida | PEP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .theme-icon-minimal { font-family: "Segoe UI Symbol", sans-serif; font-weight: 100; user-select: none; }
+        .nav-link { text-decoration: none; color: inherit; transition: opacity 0.2s; }
+        textarea { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); resize: vertical; }
+    </style>
 </head>
-<body>
-    <header class="main-header">
-        <h2>Módulo Prova de Vida</h2>
-        
-        <nav>
-            <a href="{{ url_for('dashboard') }}">Dashboard</a>
-            <a href="{{ url_for('prontuario') }}">Prontuário</a>
-            <a href="{{ url_for('pacientes') }}" class="active">Pacientes</a> 
-            <a href="{{ url_for('estoque') }}">Estoque</a>
-            <a href="{{ url_for('conversor') }}">Conversor</a>
-            <a href="{{ url_for('arquivo') }}">Arquivo</a>
-            {% if session.get('nivel') in ['admin', 'tecnico'] %}
-                <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
-            {% endif %}
-            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+<body class="dark-mode">
+    <header class="main-header" style="background: #181a1f; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+        <h2>❤️ Prova de Vida | <span style="font-weight: 100;">PEP</span></h2>
+        <nav style="display: flex; align-items: center; gap: 20px;">
+            <button id="theme-toggle" class="theme-toggle-btn" title="Alternar Modo" 
+                    style="background: none; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; border-radius: 8px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; transition: 0.3s; color: inherit;">
+                <span id="theme-icon" class="theme-icon-minimal" style="font-size: 1.2rem;"></span>
+            </button>
+            <a href="{{ url_for('dashboard') }}" class="nav-link">Home</a>
+            <a href="{{ url_for('sistema') }}" class="nav-link" style="color: #61afef; font-weight: bold;">Sistema</a>
+            <a href="{{ url_for('logout') }}" class="nav-link" style="color: #e06c75; font-weight: bold;">Sair</a>
         </nav>
-        
     </header>
 
-    <main class="pv-container">
-        <form action="{{ url_for('prova_vida', paciente_id=paciente.id) }}" method="POST"> 
-            
-            <input type="hidden" name="paciente_id" value="{{ paciente.id }}">
-            
-            <h3>Registro de Sinais Vitais para **{{ paciente.nome }}**</h3>
-            <p class="nota-paciente">ID do Paciente: **{{ paciente.id }}**</p>
+    <main class="content-wrapper" style="padding: 20px;">
+        <div class="pv-container" style="max-width: 700px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px var(--shadow-color);">
+            <h3>Registro de Sinais Vitais: <span style="color: #61afef;">{{ paciente.nome }}</span></h3>
+            <hr style="opacity: 0.1; margin: 20px 0;">
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="data_pv">Data da Prova de Vida:</label>
-                    <input type="date" id="data_pv" name="data_pv" value="{{ agora.split('T')[0] }}" required>
-                </div>
-                <div class="form-group">
-                    <label for="hora_pv">Hora da Prova de Vida:</label>
-                    <input type="time" id="hora_pv" name="hora_pv" value="{{ agora.split('T')[1] }}" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="quem_efetuou">Quem Efetuou a Medição:</label>
-                <input type="text" id="quem_efetuou" name="quem_efetuou" required readonly value="{{ usuario_logado }}">
-            </div>
-
-            <hr style="margin: 25px 0; border-color: #eee;">
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="pressao_arterial">Pressão Arterial (PA):</label>
-                    <div class="input-with-unit">
-                        <input type="text" id="pressao_arterial" name="pressao_arterial" placeholder="Ex: 120/80" required>
-                        <span>mmHg</span>
+            <form action="{{ url_for('prova_vida', paciente_id=paciente.id) }}" method="POST">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="form-group">
+                        <label>Pressão Arterial (PA):</label>
+                        <input type="text" name="pa" placeholder="Ex: 120/80" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Glicose (mg/dL):</label>
+                        <input type="number" name="glicose" placeholder="Ex: 90" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Saturação (SpO2 %):</label>
+                        <input type="number" name="sat" placeholder="Ex: 98" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Frequência Cardíaca (BPM):</label>
+                        <input type="number" name="bpm" placeholder="Ex: 75" required>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="batimentos_cardiacos">Batimentos Cardíacos (FC):</label>
-                    <div class="input-with-unit">
-                        <input type="number" id="batimentos_cardiacos" name="batimentos_cardiacos" min="0" placeholder="75">
-                        <span>bpm</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="glicose">Glicose:</label>
-                    <div class="input-with-unit">
-                        <input type="number" step="0.1" id="glicose" name="glicose" min="0" placeholder="95">
-                        <span>mg/dL</span>
-                    </div>
+                <div class="form-group" style="margin-top: 20px;">
+                    <label>Evolução (Opcional):</label>
+                    <textarea name="evolucao" rows="5" placeholder="Relate aqui a evolução clínica, melhorias, queixas ou intercorrências do paciente..."></textarea>
                 </div>
 
-                <div class="form-group">
-                    <label for="saturacao">Saturação (SpO2):</label>
-                    <div class="input-with-unit">
-                        <input type="number" step="0.1" id="saturacao" name="saturacao" min="0" max="100" placeholder="98">
-                        <span>%</span>
-                    </div>
+                <div style="margin-top: 30px;">
+                    <button type="submit" class="btn-login" style="width: 100%; padding: 15px; font-weight: bold; cursor: pointer;">Salvar Registro</button>
+                    <a href="{{ url_for('detalhes_prontuario', paciente_id=paciente.id) }}" style="display: block; text-align: center; margin-top: 15px; color: var(--text-secondary); text-decoration: none;">Voltar ao Prontuário</a>
                 </div>
-            </div>
-
-            <div class="form-group" style="margin-top: 20px;">
-                <label for="observacoes">Observações (Estado Geral, Dor, etc.):</label>
-                <textarea id="observacoes" name="observacoes" rows="3"></textarea>
-            </div>
-
-            <div class="action-buttons" style="margin-top: 20px; justify-content: space-between;">
-                <a href="{{ url_for('detalhes_prontuario', paciente_id=paciente.id) }}" 
-                   class="btn-logout" 
-                   style="width: 45%; background-color: #6c757d;">
-                    Cancelar / Voltar
-                </a>
-                
-                <button type="submit" 
-                        class="btn-login" 
-                        style="width: 45%; background-color: #20b2aa;">
-                    Registrar Prova de Vida
-                </button>
-            </div>
-        </form>
+            </form>
+        </div>
     </main>
 
+    <script>
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+
+        function refreshUI(isDark) {
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+                themeIcon.innerHTML = '&#9728;';
+                themeIcon.style.color = '#ffcc00';
+            } else {
+                document.body.classList.remove('dark-mode');
+                themeIcon.innerHTML = '&#9789;';
+                themeIcon.style.color = '#333';
+            }
+        }
+
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        refreshUI(savedTheme === 'dark');
+
+        themeToggle.addEventListener('click', () => {
+            const isNowDark = document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+            refreshUI(isNowDark);
+        });
+    </script>
 </body>
 </html>

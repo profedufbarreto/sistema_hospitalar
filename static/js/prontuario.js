@@ -1,58 +1,59 @@
 // static/js/prontuario.js
+
 document.addEventListener('DOMContentLoaded', function() {
-    const medicamentoSelect = document.getElementById('medicamento_entrada');
-    const outroMedicamentoGroup = document.getElementById('outro_medicamento_group');
-    const cepInput = document.getElementById('cep');
-    const enderecoInput = document.getElementById('endereco');
-    const bairroInput = document.getElementById('bairro');
-    const cidadeUfInput = document.getElementById('cidade_uf');
-    const numeroInput = document.getElementById('numero');
+    const medicationContainer = document.getElementById('medication-container');
+    const addMedBtn = document.getElementById('add-med-btn');
 
-    // --- Lógica: Mostrar/Esconder campo "Outro Medicamento" ---
-    if (medicamentoSelect && outroMedicamentoGroup) {
-        // Inicialmente verifica e aplica o display correto
-        outroMedicamentoGroup.style.display = medicamentoSelect.value === 'outro' ? 'block' : 'none';
+    /**
+     * Adiciona uma nova linha de medicamento clonando o template do HTML
+     */
+    function addMedicationItem() {
+        const template = document.getElementById('medication-template');
+        if (!template) return;
 
-        medicamentoSelect.addEventListener('change', function() {
-            outroMedicamentoGroup.style.display = this.value === 'outro' ? 'block' : 'none';
-        });
+        // importNode garante a clonagem profunda de todos os elementos (inclusive as options do loop)
+        const clone = document.importNode(template.content, true);
+        
+        const select = clone.querySelector('.medicamento-select');
+        const outroGroup = clone.querySelector('.outro-medicamento-group');
+
+        // Escuta mudança no select para mostrar campo 'Outro'
+        if (select && outroGroup) {
+            select.addEventListener('change', function() {
+                outroGroup.style.display = this.value === 'outro' ? 'block' : 'none';
+            });
+        }
+
+        medicationContainer.appendChild(clone);
     }
 
-    // --- Lógica: Preenchimento Automático do CEP (ViaCEP) ---
-    if (cepInput) {
-        cepInput.addEventListener('blur', function() {
-            // Remove caracteres não numéricos e limita a 8 dígitos
-            const cep = this.value.replace(/\D/g, '').substring(0, 8);
-            
-            // Limpa os campos enquanto espera a resposta
-            enderecoInput.value = '';
-            bairroInput.value = '';
-            cidadeUfInput.value = '';
+    /**
+     * Remove a linha de medicação selecionada
+     */
+    window.removeMedicationItem = function(btn) {
+        const items = medicationContainer.querySelectorAll('.medication-item');
+        if (items.length > 1) {
+            btn.closest('.medication-item').remove();
+        } else {
+            alert("Mantenha ao menos um campo de medicação.");
+        }
+    };
 
-            if (cep.length === 8) {
-                // Endpoint do ViaCEP
-                const url = `https://viacep.com.br/ws/${cep}/json/`;
+    /**
+     * Atualiza o valor oculto para o banco de dados (S/N)
+     */
+    window.updateSNValue = function(checkbox) {
+        const hiddenInput = checkbox.closest('.checkbox-sn').querySelector('.sn-hidden-input');
+        hiddenInput.value = checkbox.checked ? "1" : "0";
+    };
 
-                fetch(url)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (!("erro" in data)) {
-                            // Preenche os campos se os dados existirem
-                            enderecoInput.value = data.logradouro || '';
-                            bairroInput.value = data.bairro || '';
-                            cidadeUfInput.value = `${data.localidade || ''} / ${data.uf || ''}`;
-                            
-                            // Foca no campo 'Número' para continuar o preenchimento
-                            numeroInput.focus(); 
-                        } else {
-                            alert("CEP não encontrado ou inválido. Por favor, preencha o endereço manualmente.");
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Erro ao buscar CEP:', error);
-                        alert("Erro na comunicação com o servidor de CEP.");
-                    });
-            }
-        });
+    // Botão Adicionar
+    if (addMedBtn) {
+        addMedBtn.addEventListener('click', addMedicationItem);
+    }
+
+    // Adiciona a primeira linha automaticamente ao carregar
+    if (medicationContainer && medicationContainer.children.length === 0) {
+        addMedicationItem();
     }
 });

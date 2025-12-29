@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistema | PEP Profissional</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .sys-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 25px;
+            padding: 40px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .sys-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 40px 20px;
+            border-radius: 15px;
+            text-align: center;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .sys-card:hover {
+            transform: translateY(-5px);
+            border-color: #61afef;
+            background: rgba(97, 175, 239, 0.05);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+        .sys-icon { font-size: 2.5rem; }
+        .sys-label { font-weight: 600; font-size: 1.1rem; }
+        
+        /* Ajuste do Cabeçalho para o Sistema (Menu Completo) */
+        .main-header nav a { font-size: 0.85rem; }
+    </style>
+</head>
+<body class="dark-mode">
+    
+    <header class="main-header" style="background: #181a1f; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+        <h2>⚙️ Sistema | <span style="font-weight: 100;">PEP</span></h2>
+        <nav style="display: flex; align-items: center; gap: 12px;">
+            <a href="{{ url_for('dashboard') }}" style="text-decoration: none; color: #abb2bf;">Dashboard</a>
+            <a href="{{ url_for('prontuario') }}" style="text-decoration: none; color: #abb2bf;">Prontuário</a>
+            <a href="{{ url_for('pacientes') }}" style="text-decoration: none; color: #abb2bf;">Pacientes</a>
+            <a href="{{ url_for('estoque') }}" style="text-decoration: none; color: #abb2bf;">Estoque</a>
+            <a href="{{ url_for('conversor') }}" style="text-decoration: none; color: #abb2bf;">Conversor</a>
+            <a href="{{ url_for('arquivo') }}" style="text-decoration: none; color: #abb2bf;">Arquivo</a>
+            <a href="{{ url_for('gerenciar_usuarios') }}" style="text-decoration: none; color: #abb2bf;">Usuários</a>
+            <a href="{{ url_for('logout') }}" style="color: #e06c75; font-weight: bold; text-decoration: none; margin-left: 10px;">Sair</a>
+        </nav>
+    </header>
+
+    <main class="sys-grid">
+        <a href="{{ url_for('prontuario') }}" class="sys-card">
+            <span class="sys-icon">📋</span>
+            <span class="sys-label">Novo Prontuário</span>
+        </a>
+        <a href="{{ url_for('pacientes') }}" class="sys-card">
+            <span class="sys-icon">👥</span>
+            <span class="sys-label">Lista de Pacientes</span>
+        </a>
+        <a href="{{ url_for('estoque') }}" class="sys-card">
+            <span class="sys-icon">📦</span>
+            <span class="sys-label">Controle de Estoque</span>
+        </a>
+        <a href="{{ url_for('conversor') }}" class="sys-card">
+            <span class="sys-icon">🔄</span>
+            <span class="sys-label">Conversor de Medidas</span>
+        </a>
+        <a href="{{ url_for('arquivo') }}" class="sys-card">
+            <span class="sys-icon">📁</span>
+            <span class="sys-label">Arquivo Geral</span>
+        </a>
+        <a href="{{ url_for('gerenciar_usuarios') }}" class="sys-card">
+            <span class="sys-icon">⚙️</span>
+            <span class="sys-label">Gerenciar Usuários</span>
+        </a>
+    </main>
+
+    <script>
+        // Mantendo o tema escuro como padrão para o Sistema
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.remove('dark-mode');
+        }
+    </script>
+</body>
+</html>
