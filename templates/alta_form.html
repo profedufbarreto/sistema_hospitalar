@@ -32,7 +32,15 @@
     <div class="pv-container" style="max-width: 500px;"> 
         <h3 style="color: #dc3545;">👋 Registrar Alta Médica</h3>
         <p>Paciente: <strong>{{ paciente.nome }}</strong> (ID: {{ paciente.id }})</p>
-        <p>Internação desde: <strong>{{ paciente.data_entrada.strftime('%d/%m/%Y %H:%M') }}</strong></p>
+        
+        <p>Internação desde: <strong>
+            {% if paciente.data_entrada %}
+                {{ paciente.data_entrada.strftime('%d/%m/%Y %H:%M') }}
+            {% else %}
+                Não informada
+            {% endif %}
+        </strong></p>
+        
         <hr>
         
         <form method="POST" action="{{ url_for('dar_alta', paciente_id=paciente.id) }}">
@@ -54,16 +62,45 @@
             <div class="form-row" style="margin-top: 30px; justify-content: space-between;">
                 <a href="{{ url_for('detalhes_prontuario', paciente_id=paciente.id) }}" 
                    class="btn-logout" 
-                   style="width: 45%; background-color: #6c757d;">
+                   style="width: 45%; background-color: #6c757d; text-align: center; text-decoration: none; padding: 10px 0; border-radius: 4px; display: inline-block;">
                     Cancelar
                 </a>
                 <button type="submit" 
                         class="btn-login" 
-                        style="width: 45%; background-color: #dc3545;">
+                        style="width: 45%; background-color: #dc3545; border: none; color: white; cursor: pointer; border-radius: 4px;">
                     ✅ Confirmar Alta
                 </button>
             </div>
         </form>
     </div>
+
+    <script>
+        // Lógica do Tema (Dark Mode)
+        function updateThemeIcon() {
+            const toggle = document.getElementById('theme-toggle');
+            const label = document.querySelector('.theme-icon-label');
+            if (toggle && label) {
+                label.setAttribute('data-icon', toggle.checked ? '🌞' : '🌙');
+            }
+        }
+
+        function initTheme() {
+            const toggle = document.getElementById('theme-toggle');
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                if(toggle) toggle.checked = true;
+            }
+            updateThemeIcon();
+        }
+
+        document.getElementById('theme-toggle').addEventListener('change', function() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+            updateThemeIcon();
+        });
+
+        document.addEventListener('DOMContentLoaded', initTheme);
+    </script>
 </body>
 </html>

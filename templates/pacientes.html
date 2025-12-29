@@ -2,22 +2,29 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Pacientes Internados</title>
+    <title>Pacientes Internados | PEP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <header class="main-header">
         <h2>Módulo Prontuário</h2>
-        <nav>
+        <nav style="display: flex; align-items: center;">
+            <div class="theme-switcher">
+                <input type="checkbox" id="theme-toggle" title="Alternar Modo de Visualização">
+                <label for="theme-toggle" class="theme-icon-label"></label>
+            </div>
+
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
             <a href="{{ url_for('prontuario') }}">Prontuário</a> 
             <a href="{{ url_for('pacientes') }}" class="active">Pacientes</a>
             <a href="{{ url_for('estoque') }}">Estoque</a> 
             <a href="{{ url_for('conversor') }}">Conversor</a> 
             <a href="{{ url_for('arquivo') }}">Arquivo</a> 
+            
             {% if session.get('nivel') in ['admin', 'tecnico'] %}
                 <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
             {% endif %}
+            
             <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>
     </header>
@@ -35,15 +42,16 @@
 
         <h3>Lista de Pacientes Internados</h3>
         
-        <div class="search-bar">
-            <label for="search-input">Pesquisar por Nome:</label>
-            <input type="text" id="search-input" placeholder="Digite o nome do paciente..." onkeyup="filterTable()">
+        <div class="search-bar card" style="margin-bottom: 20px; padding: 15px;">
+            <label for="search-input"><strong>🔍 Pesquisar por Nome:</strong></label>
+            <input type="text" id="search-input" placeholder="Digite o nome do paciente..." onkeyup="filterTable()" style="width: 100%; margin-top: 10px;">
         </div>
         
-        <table id="pacientes-table">
+        <table id="pacientes-table" class="card-table">
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Prioridade</th>
                     <th>Nome do Paciente</th>
                     <th>Data de Nascimento</th>
                     <th>Entrada</th>
@@ -54,27 +62,32 @@
                 {% for paciente in pacientes %}
                 <tr data-nome="{{ paciente.nome | lower }}">
                     <td>{{ paciente.id }}</td>
-                    <td>{{ paciente.nome }}</td>
+                    <td>
+                        <span class="badge nivel-{{ paciente.prioridade_atencao | lower }}">
+                            {{ paciente.prioridade_atencao | upper }}
+                        </span>
+                    </td>
+                    <td><strong>{{ paciente.nome }}</strong></td>
                     <td>{{ paciente.data_nascimento }}</td>
                     <td>{{ paciente.data_entrada }}</td>
                     <td class="tabela-acoes">
-                        
-                        <a href="{{ url_for('prova_vida', paciente_id=paciente.id) }}" class="btn-action-pequeno btn-add-pv" style="background-color: #28a745;">
-                            ➕ PV
-                        </a>
-                        
-                        <a href="{{ url_for('detalhes_prontuario', paciente_id=paciente.id) }}" class="btn-action-pequeno btn-detalhes">
-                            Detalhes
-                        </a>
-                        
-                        {% if session.get('nivel') in ['admin', 'tecnico'] %}
-                        <a href="{{ url_for('alta_form', paciente_id=paciente.id) }}" 
-                           class="btn-action-pequeno" 
-                           style="background-color: #dc3545;">
-                            ❌ Alta
-                        </a>
-                        {% endif %}
-                        
+                        <div class="acoes-flex">
+                            <a href="{{ url_for('prova_vida', paciente_id=paciente.id) }}" class="btn-action-pequeno" style="background-color: #28a745; text-decoration: none; color: white; padding: 5px 10px; border-radius: 4px;">
+                                ➕ PV
+                            </a>
+                            
+                            <a href="{{ url_for('detalhes_prontuario', paciente_id=paciente.id) }}" class="btn-action-pequeno btn-detalhes" style="text-decoration: none; padding: 5px 10px; border-radius: 4px;">
+                                Detalhes
+                            </a>
+                            
+                            {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                            <a href="{{ url_for('alta_form', paciente_id=paciente.id) }}" 
+                               class="btn-action-pequeno" 
+                               style="background-color: #dc3545; text-decoration: none; color: white; padding: 5px 10px; border-radius: 4px;">
+                                ❌ Alta
+                            </a>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -83,5 +96,40 @@
     </main>
     
     <script src="{{ url_for('static', filename='js/filter.js') }}"></script>
+    <script>
+        // --- LÓGICA DO TEMA (DARK MODE) ---
+        function updateThemeIcon() {
+            const toggle = document.getElementById('theme-toggle');
+            const label = document.querySelector('.theme-icon-label');
+            if (toggle && label) {
+                label.setAttribute('data-icon', toggle.checked ? '🌞' : '🌙');
+            }
+        }
+
+        function initTheme() {
+            const toggle = document.getElementById('theme-toggle');
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                if(toggle) toggle.checked = true;
+            }
+            updateThemeIcon();
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeIcon();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            const toggle = document.getElementById('theme-toggle');
+            if (toggle) {
+                toggle.addEventListener('change', toggleTheme);
+            }
+        });
+    </script>
 </body>
 </html>

@@ -15,20 +15,31 @@
                 <input type="checkbox" id="theme-toggle" title="Alternar Modo de Visualização">
                 <label for="theme-toggle" class="theme-icon-label"></label>
             </div>
+            
             <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
             <a href="{{ url_for('prontuario') }}">Prontuário</a>
             <a href="{{ url_for('pacientes') }}">Pacientes</a> 
             <a href="{{ url_for('estoque') }}">Estoque</a>
             <a href="{{ url_for('conversor') }}">Conversor</a> 
             <a href="{{ url_for('arquivo') }}">Arquivo</a> 
-            {% if session.get('nivel') in ['admin', 'enfermeiro'] %}
+            
+            {% if session.get('nivel') in ['admin', 'tecnico'] %}
                 <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
             {% endif %}
+            
             <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>
     </header>
 
     <main class="dashboard-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <section class="kpi-cards">
             <div class="card card-internados">
                 <h4>🩺 Internados Atuais</h4>
@@ -40,8 +51,11 @@
                     <h4>✅ Altas</h4>
                     <select class="kpi-filter" onchange="updateKpi('altas', this.value)">
                         <option value="7d">Últimos 7 dias</option>
-                        <option value="1m">Último Mês</option>
-                        <option value="1y">Último Ano</option>
+                        <option value="15d">Últimos 15 dias</option>
+                        <option value="30d">Últimos 30 dias</option>
+                        <option value="trimestre">Último Trimestre</option>
+                        <option value="semestre">Último Semestre</option>
+                        <option value="ano">Último Ano</option>
                     </select>
                 </div>
                 <p class="kpi-value" id="kpi-altas-val">{{ dados.altas_ultimos_7_dias }}</p> 
@@ -57,17 +71,22 @@
                     <h4>❤️ Provas de Vida</h4>
                     <select class="kpi-filter" onchange="updateKpi('pv', this.value)">
                         <option value="24h">Últimas 24h</option>
-                        <option value="7d">Últimos 7 dias</option>
+                        <option value="48h">Últimas 48h</option>
+                        <option value="92h">Últimas 92h</option>
                     </select>
                 </div>
                 <p class="kpi-value" id="kpi-pv-val">{{ dados.provas_vida_ultimas_24h }}</p> 
+                <div style="text-align: center; margin-top: 10px;">
+                    <a href="{{ url_for('provas_vida_geral') }}" style="color: #007bff; text-decoration: none; font-size: 0.85em; font-weight: bold;">
+                        🔍 Ver Histórico Geral
+                    </a>
+                </div>
             </div>
         </section>
 
         <hr>
 
         <section class="charts-grid">
-            
             <div class="chart-container-small">
                 <h3>📊 Movimentação Mensal</h3>
                 <div class="chart-wrapper"><canvas id="mensalChart"></canvas></div>
@@ -92,32 +111,32 @@
                 <h3>📈 Tendência de Prioridade</h3>
                 <div class="chart-wrapper"><canvas id="tendenciaChart"></canvas></div>
             </div>
-
         </section>
     </main>
 
     <script>
         const d = {{ dados|tojson }};
+        
         const commonOptions = { 
             responsive: true, 
             maintainAspectRatio: false,
             plugins: { legend: { position: 'top' } }
         };
 
-        // 1. Movimentação Mensal
+        // 1. Gráfico de Movimentação Mensal
         new Chart(document.getElementById('mensalChart'), {
             type: 'line',
             data: {
                 labels: d.movimentacao_mensal.labels,
                 datasets: [
-                    { label: 'Entradas', data: d.movimentacao_mensal.entradas, borderColor: '#007bff', tension: 0.3 },
-                    { label: 'Altas', data: d.movimentacao_mensal.altas, borderColor: '#28a745', tension: 0.3 }
+                    { label: 'Entradas', data: d.movimentacao_mensal.entradas, borderColor: '#007bff', tension: 0.3, fill: false },
+                    { label: 'Altas', data: d.movimentacao_mensal.altas, borderColor: '#28a745', tension: 0.3, fill: false }
                 ]
             },
             options: commonOptions
         });
 
-        // 2. Prioridade (Rosca)
+        // 2. Gráfico de Prioridade
         new Chart(document.getElementById('prioridadeChart'), {
             type: 'doughnut',
             data: {
@@ -130,24 +149,24 @@
             options: commonOptions
         });
 
-        // 3. Dias Médios (Barras Horizontal)
+        // 3. Gráfico de Dias Médios
         new Chart(document.getElementById('diasChart'), {
             type: 'bar',
             data: {
-                labels: d.dias_data.labels,
-                datasets: [{ label: 'Média de Dias', data: d.dias_data.data, backgroundColor: '#20b2aa' }]
+                labels: d.dias_data.labels || [],
+                datasets: [{ label: 'Média de Dias', data: d.dias_data.data || [], backgroundColor: '#20b2aa' }]
             },
             options: { ...commonOptions, indexAxis: 'y' }
         });
 
-        // 4. Histórico Anual
+        // 4. Gráfico de Histórico Anual
         new Chart(document.getElementById('anualChart'), {
             type: 'bar',
             data: {
-                labels: d.movimentacao_anual.labels,
+                labels: d.movimentacao_anual.labels || [],
                 datasets: [
-                    { label: 'Entradas', data: d.movimentacao_anual.entradas, backgroundColor: '#007bff' },
-                    { label: 'Altas', data: d.movimentacao_anual.altas, backgroundColor: '#28a745' }
+                    { label: 'Entradas', data: d.movimentacao_anual.entradas || [], backgroundColor: '#007bff' },
+                    { label: 'Altas', data: d.movimentacao_anual.altas || [], backgroundColor: '#28a745' }
                 ]
             },
             options: commonOptions
@@ -159,9 +178,9 @@
             data: {
                 labels: d.movimentacao_mensal.labels,
                 datasets: [
-                    { label: 'Verde', data: d.prioridade_tendencia.verde, borderColor: '#28a745' },
-                    { label: 'Amarelo', data: d.prioridade_tendencia.amarelo, borderColor: '#ffc107' },
-                    { label: 'Vermelho', data: d.prioridade_tendencia.vermelho, borderColor: '#dc3545' }
+                    { label: 'Verde', data: d.prioridade_tendencia.verde, borderColor: '#28a745', fill: false },
+                    { label: 'Amarelo', data: d.prioridade_tendencia.amarelo, borderColor: '#ffc107', fill: false },
+                    { label: 'Vermelho', data: d.prioridade_tendencia.vermelho, borderColor: '#dc3545', fill: false }
                 ]
             },
             options: commonOptions
@@ -170,8 +189,42 @@
         function updateKpi(t, p) {
             fetch(`/api/kpi/${t}/${p}`).then(r => r.json()).then(data => {
                 document.getElementById(`kpi-${t}-val`).innerText = data.valor;
-            });
+            }).catch(err => console.error("Erro ao atualizar KPI:", err));
         }
+
+        // --- CONTROLE DE TEMA ---
+        function updateThemeIcon() {
+            const toggle = document.getElementById('theme-toggle');
+            const label = document.querySelector('.theme-icon-label');
+            if (toggle && label) {
+                label.setAttribute('data-icon', toggle.checked ? '🌞' : '🌙');
+            }
+        }
+
+        function initTheme() {
+            const toggle = document.getElementById('theme-toggle');
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                if(toggle) toggle.checked = true;
+            }
+            updateThemeIcon();
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeIcon();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            const toggle = document.getElementById('theme-toggle');
+            if (toggle) {
+                toggle.addEventListener('change', toggleTheme);
+            }
+        });
     </script>
 </body>
 </html>

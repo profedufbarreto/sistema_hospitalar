@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Histórico Geral de Provas de Vida | PEP</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="main-header">
+        <h2>Histórico de Sinais Vitais</h2>
+        <nav style="display: flex; align-items: center;">
+            <div class="theme-switcher">
+                <input type="checkbox" id="theme-toggle">
+                <label for="theme-toggle" class="theme-icon-label"></label>
+            </div>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('pacientes') }}">Pacientes</a>
+            <a href="{{ url_for('provas_vida_geral') }}" class="active">Histórico PV</a>
+            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+        </nav>
+    </header>
+
+    <main class="pacientes-container">
+        <div class="estoque-header card" style="margin-bottom: 20px; padding: 20px;">
+            <h3>📊 Registros de Provas de Vida (Todos os Pacientes)</h3>
+            <div class="search-bar" style="width: 100%; margin-top: 15px;">
+                <input type="text" id="filtroPV" placeholder="Pesquisar por paciente, data ou profissional..." 
+                       onkeyup="filtrarPV()" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+            </div>
+        </div>
+
+        <table class="card-table" id="tabelaPV">
+            <thead>
+                <tr>
+                    <th>Data/Hora</th>
+                    <th>Paciente</th>
+                    <th>P.A.</th>
+                    <th>Glicose</th>
+                    <th>Sat.</th>
+                    <th>BPM</th>
+                    <th>Executado por</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for registro in historico %}
+                <tr>
+                    <td><strong>{{ registro.data_hora.strftime('%d/%m/%Y %H:%M') }}</strong></td>
+                    <td>{{ registro.nome_paciente }}</td>
+                    <td>{{ registro.pressao_arterial }}</td>
+                    <td>{{ registro.glicose }} mg/dL</td>
+                    <td>{{ registro.saturacao }}%</td>
+                    <td>{{ registro.batimentos_cardiacos }} bpm</td>
+                    <td><span class="badge nivel-estagiario">{{ registro.quem_efetuou }}</span></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" style="text-align: center;">Nenhum registro encontrado.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </main>
+
+    <script>
+        // Função de Pesquisa Dinâmica
+        function filtrarPV() {
+            let input = document.getElementById("filtroPV");
+            let filter = input.value.toLowerCase();
+            let table = document.getElementById("tabelaPV");
+            let tr = table.getElementsByTagName("tr");
+
+            for (let i = 1; i < tr.length; i++) {
+                let text = tr[i].textContent.toLowerCase();
+                tr[i].style.display = text.includes(filter) ? "" : "none";
+            }
+        }
+
+        // Lógica do Tema
+        function initTheme() {
+            if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
+        }
+        document.getElementById('theme-toggle').addEventListener('change', function() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        });
+        document.addEventListener('DOMContentLoaded', initTheme);
+    </script>
+</body>
+</html>

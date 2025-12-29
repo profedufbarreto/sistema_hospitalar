@@ -8,83 +8,132 @@
 <body>
     
     <header class="main-header">
-        <h2>Dashboard | PEP</h2> 
+        <h2>Gerenciamento | PEP</h2> 
         <nav style="display: flex; align-items: center;">
-        
             <div class="theme-switcher">
                 <input type="checkbox" id="theme-toggle" title="Alternar Modo de Visualização">
                 <label for="theme-toggle" class="theme-icon-label"></label>
             </div>
         
-        <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
-        <a href="{{ url_for('prontuario') }}">Prontuário</a>
-        <a href="{{ url_for('pacientes') }}">Pacientes</a> 
-        <a href="{{ url_for('estoque') }}">Estoque</a>
-        <a href="{{ url_for('conversor') }}">Conversor</a> 
-        <a href="{{ url_for('arquivo') }}">Arquivo</a> 
-        
-        {% if session.get('nivel') in ['admin', 'tecnico'] %}
-            <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
-        {% endif %}
-        
-        <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('prontuario') }}">Prontuário</a>
+            <a href="{{ url_for('pacientes') }}">Pacientes</a> 
+            <a href="{{ url_for('estoque') }}" class="active">Estoque</a>
+            <a href="{{ url_for('conversor') }}">Conversor</a> 
+            <a href="{{ url_for('arquivo') }}">Arquivo</a> 
+            
+            {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
+            {% endif %}
+            
+            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>
     </header>
 
     <main class="estoque-container">
-        <div class="estoque-header">
-            <h3>Inventário de Medicamentos</h3>
-            {% if nivel in ['admin', 'tecnico'] %}
-            <button class="btn-add" id="openModalBtn">Adicionar/Alimentar Estoque</button>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="estoque-header card" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; margin-bottom: 20px;">
+            <h3>📦 Inventário de Medicamentos</h3>
+            {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                <button class="btn-adicionar" onclick="abrirModalAdd()" style="padding: 10px 20px;">➕ Alimentar Estoque</button>
             {% endif %}
         </div>
 
-        <table>
+        <table class="card-table">
             <thead>
                 <tr>
                     <th>Medicamento</th>
-                    <th>Quantidade Disponível</th>
+                    <th>Qtd Disponível</th>
                     <th>Unidade</th>
-                    <th>Última Entrada</th>
+                    <th>Última Alteração</th>
+                    <th>Ações</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in itens %}
-                <tr class="{% if item.quantidade < 100 %}low-stock{% endif %}"> 
-                    <td>{{ item.nome_medicamento }}</td>
+                <tr class="{% if item.quantidade < 100 %}low-stock-alert{% endif %}"> 
+                    <td><strong>{{ item.nome_medicamento }}</strong></td>
                     <td>{{ item.quantidade }}</td>
                     <td>{{ item.unidade }}</td>
-                    <td>{{ item.data_ultima_entrada.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>
+                        <small>
+                            {{ item.data_ultima_entrada.strftime('%d/%m/%Y %H:%M') if item.data_ultima_entrada }}<br>
+                            <strong>Por:</strong> {{ item.usuario_ultima_alteracao or 'Sistema' }}
+                        </small>
+                    </td>
+                    <td>
+                        {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                        <button class="btn-editar" onclick="abrirModalEdicao('{{ item.id }}', '{{ item.nome_medicamento }}', '{{ item.quantidade }}', '{{ item.unidade }}')">
+                            ✏️ Editar
+                        </button>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% else %}
-                <tr>
-                    <td colspan="4">Nenhum item encontrado no estoque.</td>
-                </tr>
+                <tr><td colspan="5" style="text-align: center;">Vazio.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </main>
 
-    <div id="estoqueModal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn">&times;</span>
-            <h4>Alimentar/Adicionar Medicamento</h4>
-            <form action="{{ url_for('salvar_estoque') }}" method="POST">
-                <label for="nome">Nome do Medicamento:</label>
-                <input type="text" id="nome" name="nome" required placeholder="Ex: Paracetamol">
-                
-                <label for="quantidade">Quantidade a Adicionar (apenas números):</label>
-                <input type="number" id="quantidade" name="quantidade" required min="1" value="1">
-                
-                <label for="unidade">Unidade de Medida:</label>
-                <input type="text" id="unidade" name="unidade" required placeholder="Ex: mg, comprimidos, frascos">
-                
-                <button type="submit">Salvar Estoque</button>
+    <div id="modalAdd" class="modal">
+        <div class="modal-content card">
+            <span class="close-modal" onclick="fecharModal('modalAdd')">&times;</span>
+            <h4>📥 Alimentar Estoque</h4>
+            <form action="{{ url_for('salvar_estoque') }}" method="POST" class="grid-form">
+                <input type="text" name="nome" required placeholder="Medicamento">
+                <input type="number" name="quantidade" required min="1" placeholder="Quantidade a SOMAR">
+                <select name="unidade" required>
+                    <option value="UN">UN</option><option value="MG">MG</option><option value="ML">ML</option><option value="FR">FR</option>
+                </select>
+                <button type="submit" class="btn-save">Confirmar Entrada</button>
             </form>
-            <p style="font-size: 0.8em; margin-top: 15px; color: #666;">* Se o medicamento existir, a quantidade será somada.</p>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/estoque_modal.js') }}"></script>
+    <div id="modalEdit" class="modal">
+        <div class="modal-content card">
+            <span class="close-modal" onclick="fecharModal('modalEdit')">&times;</span>
+            <h4>✏️ Corrigir Registro</h4>
+            <form id="formEditEstoque" method="POST" class="grid-form">
+                <input type="text" name="nome_medicamento" id="edit_nome" required>
+                <input type="number" name="quantidade" id="edit_qtd" required>
+                <input type="text" name="unidade" id="edit_unidade" required>
+                <button type="submit" class="btn-save">Salvar Correção</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function abrirModalAdd() { document.getElementById('modalAdd').style.display = 'block'; }
+        
+        function abrirModalEdicao(id, nome, qtd, unidade) {
+            document.getElementById('modalEdit').style.display = 'block';
+            document.getElementById('edit_nome').value = nome;
+            document.getElementById('edit_qtd').value = qtd;
+            document.getElementById('edit_unidade').value = unidade;
+            document.getElementById('formEditEstoque').action = "/estoque/editar/" + id;
+        }
+
+        function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        // Tema
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
+        });
+    </script>
 </body>
 </html>
