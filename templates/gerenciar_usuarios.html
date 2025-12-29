@@ -7,22 +7,42 @@
 </head>
 <body>
     
-    <header class="main-header">
-        <h2>Sistema Hospitalar | PEP</h2> 
-        <nav style="display: flex; align-items: center;">
-            <div class="theme-switcher">
-                <input type="checkbox" id="theme-toggle" title="Alternar Modo de Visualização">
-                <label for="theme-toggle" class="theme-icon-label"></label>
-            </div>
+<header class="main-header" style="background: #181a1f; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; position: fixed; top: 0; width: 100%; z-index: 1000;">
+    
+    <div class="nav-dropdown">
+        <h2 onclick="toggleNavMenu()" style="cursor: pointer; margin: 0; display: flex; align-items: center; gap: 10px;" title="Clique para navegar entre módulos">
+            📊 PEP <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
+        </h2>
         
-            <a href="{{ url_for('dashboard') }}">Dashboard</a>
-            <a href="{{ url_for('prontuario') }}">Prontuário</a>
-            <a href="{{ url_for('pacientes') }}">Pacientes</a> 
-            <a href="{{ url_for('arquivo') }}">Arquivo</a> 
-            <a href="{{ url_for('gerenciar_usuarios') }}" class="active">Usuários</a>
-            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
-        </nav>
-    </header>
+        <div id="nav-menu-list" class="nav-menu-content card">
+            <div class="menu-sep">NAVEGAÇÃO RÁPIDA</div>
+            <a href="{{ url_for('dashboard') }}">🏠 Dashboard (Home)</a>
+            <a href="{{ url_for('pacientes') }}">👥 Pacientes Internados</a>
+            <a href="{{ url_for('prontuario') }}">📝 Novo Prontuário</a>
+            
+            <div class="menu-sep">GESTÃO E CLÍNICA</div>
+            <a href="{{ url_for('estoque') }}">📦 Estoque de Medicamentos</a>
+            <a href="{{ url_for('provas_vida_geral') }}">❤️ Histórico de Provas de Vida</a>
+            <a href="{{ url_for('arquivo') }}">📁 Arquivo (Altas)</a>
+            <a href="{{ url_for('conversor') }}">⚖️ Conversor de Medidas</a>
+            
+            {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                <div class="menu-sep">ADMINISTRAÇÃO</div>
+                <a href="{{ url_for('gerenciar_usuarios') }}">👤 Gerenciar Usuários</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <nav style="display: flex; align-items: center; gap: 20px;">
+        <button id="theme-toggle" class="theme-toggle-btn" title="Alternar Modo de Cor">
+            <span id="theme-icon" class="theme-icon-minimal" style="font-size: 1.2rem;"></span>
+        </button>
+
+        <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+        <a href="{{ url_for('sistema') }}" class="nav-link" style="color: #61afef; font-weight: bold;">Sistema</a>
+        <a href="{{ url_for('logout') }}" style="color: #e06c75; font-weight: bold; text-decoration: none;" class="nav-link">Sair</a>
+    </nav>
+</header>
 
     <main class="usuarios-container">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -192,5 +212,6 @@
             }
         });
     </script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

@@ -256,3 +256,92 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
 });
+
+// static/js/main.js
+
+/**
+ * Função Global para abrir/fechar o menu de navegação do PEP
+ */
+function toggleNavMenu() {
+    const menu = document.getElementById("nav-menu-list");
+    if (menu) {
+        menu.classList.toggle("show-menu");
+    }
+}
+
+/**
+ * Fechar menus ao clicar fora deles
+ */
+window.addEventListener('click', function(event) {
+    const dropdown = document.querySelector('.nav-dropdown');
+    const menu = document.getElementById("nav-menu-list");
+    
+    // Se o clique for fora do dropdown, remove a classe de exibição
+    if (dropdown && !dropdown.contains(event.target)) {
+        if (menu && menu.classList.contains('show-menu')) {
+            menu.classList.remove('show-menu');
+        }
+    }
+});
+
+/**
+ * Lógica Global de Tema (Dark Mode)
+ * (Caso você queira centralizar aqui também)
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    
+    if (themeToggle) {
+        // Lógica de alternar tema...
+    }
+});
+
+// static/js/main.js
+
+// Abre e fecha o menu dropdown do canto esquerdo
+function toggleNavMenu() {
+    const menu = document.getElementById("nav-menu-list");
+    if (menu) menu.classList.toggle("show-menu");
+}
+
+// Gerenciamento do Tema (Sol/Lua)
+document.addEventListener('DOMContentLoaded', function() {
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+
+    function refreshUI(isDark) {
+        if (isDark) {
+            document.body.classList.add('dark-mode');
+            if (themeIcon) {
+                themeIcon.innerHTML = '&#9728;'; // Ícone de Sol
+                themeIcon.style.color = '#ffcc00';
+            }
+        } else {
+            document.body.classList.remove('dark-mode');
+            if (themeIcon) {
+                themeIcon.innerHTML = '&#9789;'; // Ícone de Lua
+                themeIcon.style.color = '#333';
+            }
+        }
+    }
+
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    refreshUI(savedTheme === 'dark');
+
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const isNowDark = document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+            refreshUI(isNowDark);
+        });
+    }
+});
+
+// Fecha o menu dropdown se clicar fora dele
+window.addEventListener('click', function(event) {
+    if (!event.target.closest('.nav-dropdown')) {
+        const menu = document.getElementById("nav-menu-list");
+        if (menu) menu.classList.remove("show-menu");
+    }
+});

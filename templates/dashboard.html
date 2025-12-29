@@ -19,9 +19,18 @@
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
         }
 
-        #theme-toggle:hover {
-            background-color: rgba(255, 255, 255, 0.05) !important;
-            border-color: rgba(255, 255, 255, 0.3) !important;
+        /* AJUSTE DE ALINHAMENTO DO HEADER */
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 30px !important; /* Respiro nas laterais */
+        }
+
+        .nav-right-group {
+            display: flex;
+            align-items: center;
+            gap: 25px; /* Espaçamento entre Sol, Dashboard, Sistema e Sair */
         }
 
         .nav-link {
@@ -29,36 +38,60 @@
             color: inherit;
             font-size: 0.95rem;
             transition: opacity 0.2s;
+            font-weight: 500;
         }
 
         .nav-link:hover { opacity: 0.7; }
-
-        .nav-link.active {
-            color: #61afef;
-            font-weight: bold;
-        }
+        .nav-link.active { color: #61afef; font-weight: bold; }
 
         .chart-wrapper {
             position: relative;
             height: 250px;
             width: 100%;
         }
+        
+        /* Compensa o header fixo */
+        .dashboard-content {
+            margin-top: 80px; 
+        }
     </style>
 </head>
 <body class="dark-mode">
     
-    <header class="main-header" style="background: #181a1f; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
-        <h2>📊 PEP <span style="font-weight: 100; opacity: 0.6;">| Dashboard</span></h2>
+    <header class="main-header" style="background: #181a1f; border-bottom: 1px solid rgba(255,255,255,0.05); position: fixed; top: 0; width: 100%; z-index: 1000;">
         
-        <nav style="display: flex; align-items: center; gap: 20px;">
-            <button id="theme-toggle" class="theme-toggle-btn" title="Alternar Modo de Cor" 
-                    style="background: none; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; padding: 0; border-radius: 8px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; transition: 0.3s;">
+        <div class="nav-dropdown">
+            <h2 onclick="toggleNavMenu()" style="cursor: pointer; margin: 0; display: flex; align-items: center; gap: 10px;" title="Clique para navegar entre módulos">
+                📊 PEP <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
+            </h2>
+            
+            <div id="nav-menu-list" class="nav-menu-content card">
+                <div class="menu-sep">NAVEGAÇÃO RÁPIDA</div>
+                <a href="{{ url_for('dashboard') }}">🏠 Dashboard (Home)</a>
+                <a href="{{ url_for('pacientes') }}">👥 Pacientes Internados</a>
+                <a href="{{ url_for('prontuario') }}">📝 Novo Prontuário</a>
+                
+                <div class="menu-sep">GESTÃO E CLÍNICA</div>
+                <a href="{{ url_for('estoque') }}">📦 Estoque de Medicamentos</a>
+                <a href="{{ url_for('provas_vida_geral') }}">❤️ Histórico de Provas de Vida</a>
+                <a href="{{ url_for('arquivo') }}">📁 Arquivo (Altas)</a>
+                <a href="{{ url_for('conversor') }}">⚖️ Conversor de Medidas</a>
+                
+                {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                    <div class="menu-sep">ADMINISTRAÇÃO</div>
+                    <a href="{{ url_for('gerenciar_usuarios') }}">👤 Gerenciar Usuários</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <nav class="nav-right-group">
+            <button id="theme-toggle" class="theme-toggle-btn" style="background: none; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; border-radius: 8px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;">
                 <span id="theme-icon" class="theme-icon-minimal" style="font-size: 1.2rem;"></span>
             </button>
-
-            <a href="{{ url_for('dashboard') }}" class="nav-link active">Home</a>
+            
+            <a href="{{ url_for('dashboard') }}" class="nav-link active">Dashboard</a>
             <a href="{{ url_for('sistema') }}" class="nav-link">Sistema</a>
-            <a href="{{ url_for('logout') }}" style="color: #e06c75; font-weight: bold; text-decoration: none;" class="nav-link">Sair</a>
+            <a href="{{ url_for('logout') }}" style="color: #e06c75; font-weight: bold;" class="nav-link">Sair</a>
         </nav>
     </header>
 
@@ -140,6 +173,7 @@
         </section>
     </main>
 
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
         const d = {{ dados|tojson }};
         let mensalChart;
@@ -147,10 +181,8 @@
         Chart.defaults.color = '#abb2bf';
         Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
         
-        // Cores diversificadas para os profissionais
         const professionalColors = ['#61afef', '#98c379', '#e5c07b', '#c678dd', '#e06c75', '#56b6c2', '#d19a66'];
 
-        // 1. Gráfico Mensal
         mensalChart = new Chart(document.getElementById('mensalChart'), {
             type: 'line',
             data: {
@@ -169,7 +201,6 @@
             mensalChart.update();
         }
 
-        // 2. Prioridade Atual
         new Chart(document.getElementById('prioridadeChart'), {
             type: 'doughnut',
             data: {
@@ -179,7 +210,6 @@
             options: { cutout: '75%', responsive: true, maintainAspectRatio: false }
         });
 
-        // 3. Dias Médios / Profissional (Cores diferentes por coluna)
         new Chart(document.getElementById('diasChart'), {
             type: 'bar',
             data: {
@@ -194,7 +224,6 @@
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
 
-        // 4. Histórico Anual
         new Chart(document.getElementById('anualChart'), {
             type: 'bar',
             data: {
@@ -207,7 +236,6 @@
             options: { responsive: true, maintainAspectRatio: false }
         });
 
-        // 5. Distribuição Anual de Triagem (Rosca Acumulada)
         new Chart(document.getElementById('tendenciaChart'), {
             type: 'doughnut',
             data: {
@@ -229,23 +257,11 @@
                 responsive: true, 
                 maintainAspectRatio: false,
                 plugins: { 
-                    legend: { position: 'bottom' },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.label || '';
-                                let value = context.parsed;
-                                let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                let percentage = ((value * 100) / total).toFixed(1) + "%";
-                                return `${label}: ${value} (${percentage})`;
-                            }
-                        }
-                    }
+                    legend: { position: 'bottom' }
                 }
             }
         });
 
-        // Atualização Dinâmica via API
         function updateKpi(t, p) {
             fetch(`/api/kpi/${t}/${p}`).then(res => res.json()).then(data => {
                 const el = document.getElementById(`kpi-${t}-val`);
@@ -258,24 +274,6 @@
                 }
             });
         }
-
-        const themeToggle = document.getElementById('theme-toggle');
-        const themeIcon = document.getElementById('theme-icon');
-
-        function refreshUI(isDark) {
-            document.body.classList.toggle('dark-mode', isDark);
-            themeIcon.innerHTML = isDark ? '&#9728;' : '&#9789;';
-            themeIcon.style.color = isDark ? '#ffcc00' : '#333';
-        }
-
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        refreshUI(savedTheme === 'dark');
-
-        themeToggle.addEventListener('click', () => {
-            const isNowDark = document.body.classList.toggle('dark-mode');
-            localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
-            refreshUI(isNowDark);
-        });
     </script>
 </body>
 </html>
