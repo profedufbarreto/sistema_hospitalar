@@ -6,15 +6,27 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    
     <header class="main-header">
-        <h2>Gerenciamento de Usuários</h2>
-        <nav>
+        <h2>Gerenciamento | PEP</h2> 
+        <nav style="display: flex; align-items: center;">
+        
+            <div class="theme-switcher">
+                <input type="checkbox" id="theme-toggle" title="Alternar Modo de Visualização">
+                <label for="theme-toggle" class="theme-icon-label"></label>
+            </div>
+        
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
             <a href="{{ url_for('prontuario') }}">Prontuário</a>
-            <a href="{{ url_for('pacientes') }}">Pacientes</a> <a href="{{ url_for('estoque') }}">Estoque</a>
-            <a href="{{ url_for('conversor') }}">Conversor</a>
-            <a href="{{ url_for('arquivo') }}">Arquivo</a>
-            <a href="{{ url_for('gerenciar_usuarios') }}" class="active">Usuários</a>
+            <a href="{{ url_for('pacientes') }}">Pacientes</a> 
+            <a href="{{ url_for('estoque') }}">Estoque</a>
+            <a href="{{ url_for('conversor') }}">Conversor</a> 
+            <a href="{{ url_for('arquivo') }}">Arquivo</a> 
+            
+            {% if session.get('nivel') in ['admin', 'enfermeiro'] %}
+                <a href="{{ url_for('gerenciar_usuarios') }}" class="active">Usuários</a>
+            {% endif %}
+            
             <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>
     </header>
@@ -35,11 +47,8 @@
             <h4>Adicionar Novo Usuário</h4>
             <form action="{{ url_for('adicionar_usuario') }}" method="POST">
                 <input type="text" name="nome_completo" placeholder="Nome Completo" required>
-                
                 <input type="text" name="usuario" placeholder="Usuário (login)" required>
-                
                 <input type="password" name="nova_senha" placeholder="Senha Desejada" required>
-
                 <input type="date" name="data_nascimento" required>
 
                 <select name="nacionalidade" required>
@@ -55,7 +64,9 @@
                 <select name="nivel_acesso" required>
                     <option value="">Nível de Acesso</option>
                     {% for nivel in niveis_permitidos %}
-                    <option value="{{ nivel }}">{{ nivel | upper }}</option>
+                    <option value="{{ nivel }}">
+                        {{ 'Enfermeiro (Acesso Total)' if nivel == 'enfermeiro' else 'Estagiário (Acesso Restrito)' if nivel == 'estagiario' else nivel | upper }}
+                    </option>
                     {% endfor %}
                 </select>
                 
@@ -63,7 +74,7 @@
             </form>
             
             {% if nivel_logado == 'admin' %}
-                <p style="margin-top: 10px; font-size: 0.9em;">* Limite de 5 Técnicos. Você pode adicionar Técnicos e Enfermeiros.</p>
+                <p style="margin-top: 10px; font-size: 0.9em;">* Como Admin, você pode gerenciar Enfermeiros e Estagiários.</p>
             {% endif %}
         </div>
         {% endif %}
@@ -94,17 +105,18 @@
                     </td>
                     <td>
                         {% set pode_excluir = false %}
-                        {# Admin pode excluir Técnico ou Enfermeiro #}
+                        
+                        {# Admin pode excluir Enfermeiro ou Estagiário #}
                         {% if nivel_logado == 'admin' and user.nivel_acesso != 'admin' %}
                             {% set pode_excluir = true %}
-                        {# Técnico pode excluir Enfermeiro #}
-                        {% elif nivel_logado == 'tecnico' and user.nivel_acesso == 'enfermeiro' %}
+                        {# Enfermeiro pode excluir Estagiário #}
+                        {% elif nivel_logado == 'enfermeiro' and user.nivel_acesso == 'estagiario' %}
                             {% set pode_excluir = true %}
                         {% endif %}
 
                         {% if pode_excluir %}
                         <form action="{{ url_for('excluir_usuario', user_id=user.id) }}" method="POST" style="display:inline;">
-                            <button type="submit" class="btn-excluir" onclick="return confirm('Tem certeza que deseja excluir {{ user.usuario }} ({{ user.nivel_acesso | upper }})?')">Excluir</button>
+                            <button type="submit" class="btn-excluir" onclick="return confirm('Tem certeza que deseja excluir {{ user.usuario }}?')">Excluir</button>
                         </form>
                         {% else %}
                         (Sem Permissão)
@@ -115,5 +127,34 @@
             </tbody>
         </table>
     </main>
+
+    <script>
+        function updateThemeIcon() {
+            const toggle = document.getElementById('theme-toggle');
+            const label = document.querySelector('.theme-icon-label');
+            if (toggle && label) {
+                label.setAttribute('data-icon', toggle.checked ? '🌞' : '🌙');
+            }
+        }
+        function initTheme() {
+            const toggle = document.getElementById('theme-toggle');
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                if(toggle) toggle.checked = true;
+            }
+            updateThemeIcon();
+        }
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeIcon();
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            document.getElementById('theme-toggle').addEventListener('change', toggleTheme);
+        });
+    </script>
 </body>
 </html>

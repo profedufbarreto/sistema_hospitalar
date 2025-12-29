@@ -6,17 +6,29 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     </head>
 <body>
-    <header class="main-header">
-        <h2>Módulo Arquivo</h2>
-        <nav>
-            <a href="{{ url_for('dashboard') }}">Dashboard</a>
-            <a href="{{ url_for('prontuario') }}">Prontuário</a>
-            <a href="{{ url_for('estoque') }}">Estoque</a>
-            <a href="{{ url_for('conversor') }}">Conversor</a>
-            <a href="#" class="active">Arquivo</a>
-            <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
-        </nav>
-    </header>
+<header class="main-header">
+    <h2>Dashboard | PEP</h2> 
+    <nav style="display: flex; align-items: center;">
+        
+        <div class="theme-switcher">
+            <input type="checkbox" id="theme-toggle" title="Alternar Modo de Visualização">
+            <label for="theme-toggle" class="theme-icon-label"></label>
+        </div>
+        
+        <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
+        <a href="{{ url_for('prontuario') }}">Prontuário</a>
+        <a href="{{ url_for('pacientes') }}">Pacientes</a> 
+        <a href="{{ url_for('estoque') }}">Estoque</a>
+        <a href="{{ url_for('conversor') }}">Conversor</a> 
+        <a href="{{ url_for('arquivo') }}">Arquivo</a> 
+        
+        {% if session.get('nivel') in ['admin', 'tecnico'] %}
+            <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
+        {% endif %}
+        
+        <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
+    </nav>
+</header>
 
     <main class="arquivo-container">
         {% if mensagem %}

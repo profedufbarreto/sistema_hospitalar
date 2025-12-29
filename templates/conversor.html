@@ -4,41 +4,170 @@
     <meta charset="UTF-8">
     <title>Módulo Conversor | PEP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> 
-    </head>
+</head>
 <body>
     <header class="main-header">
-        <h2>Módulo Conversor</h2>
+        <h2>Calculadoras de Enfermagem</h2> 
         <nav>
+            <div class="theme-switcher">
+                <input type="checkbox" id="theme-toggle" title="Alternar Modo de Visualização">
+                <label for="theme-toggle" class="theme-icon-label"></label>
+            </div>
+        
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
             <a href="{{ url_for('prontuario') }}">Prontuário</a>
-            <a href="#">Estoque</a>
-            <a href="#" class="active">Conversor</a>
-            <a href="#">Arquivo</a>
+            <a href="{{ url_for('pacientes') }}">Pacientes</a> 
+            <a href="{{ url_for('estoque') }}">Estoque</a>
+            <a href="{{ url_for('conversor') }}" class="active">Conversor</a> 
+            <a href="{{ url_for('arquivo') }}">Arquivo</a> 
+            
+            {% if session.get('nivel') in ['admin', 'enfermeiro'] %}
+                <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
+            {% endif %}
+            
             <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>
     </header>
 
-    <main class="conversor-container">
-        <h3>Calculadora de Conversão: mL ⇌ Gotas</h3>
-        <p class="observacao">
-            * **Fator Padrão:** O sistema utiliza o padrão de **20 gotas por mililitro (mL)**. 
-            Atenção: Este fator pode variar com a densidade do líquido (ex: soluções mais viscosas).
-        </p>
-
-        <div class="conversor-group">
-            <label for="ml_input">Converter Mililitros (mL) para Gotas</label>
-            <input type="number" id="ml_input" placeholder="Digite o valor em mL">
-            <div class="resultado" id="resultado_gotas">0 Gotas</div>
+    <main class="content-wrapper">
+        <div class="observacao">
+            <strong>Informação Técnica:</strong> O sistema utiliza o fator padrão de 20 gotas por mL para equipos macrogotas e 60 microgotas por mL para equipos microgotas.
         </div>
 
-        <div class="conversor-group">
-            <label for="gotas_input">Converter Gotas para Mililitros (mL)</label>
-            <input type="number" id="gotas_input" placeholder="Digite o valor em Gotas">
-            <div class="resultado" id="resultado_ml">0 mL</div>
+        <div class="conversor-container">
+            
+            <div class="conversor-card">
+                <h4>Conversão de Volume</h4>
+                <div class="conversor-group">
+                    <label for="ml_to_gotas">Mililitros (mL) para Gotas</label>
+                    <input type="number" id="ml_to_gotas" placeholder="Ex: 500" oninput="converterMlParaGotas()">
+                    <div class="resultado" id="res_gotas">0 Gotas</div>
+                </div>
+                <div class="conversor-group">
+                    <label for="gotas_to_ml">Gotas para Mililitros (mL)</label>
+                    <input type="number" id="gotas_to_ml" placeholder="Ex: 20" oninput="converterGotasParaMl()">
+                    <div class="resultado" id="res_ml">0 mL</div>
+                </div>
+            </div>
+
+            <div class="conversor-card">
+                <h4>Cálculo de Gotejamento</h4>
+                
+                <div class="conversor-group">
+                    <label>Volume Total (mL)</label>
+                    <input type="number" id="vol_infusao" placeholder="Ex: 1000" oninput="calcularGotejamento()">
+                </div>
+                <div class="conversor-group">
+                    <label>Tempo (Horas)</label>
+                    <input type="number" id="tempo_infusao" placeholder="Ex: 8" oninput="calcularGotejamento()">
+                </div>
+                <div class="resultado" id="res_gotejamento">
+                    0 Gotas/min <br>
+                    <small>0 Microgotas/min</small>
+                </div>
+            </div>
+
+            <div class="conversor-card">
+                <h4>Conversão de Massa</h4>
+                <div class="conversor-group">
+                    <label>Gramas (g) para Miligramas (mg)</label>
+                    <input type="number" id="g_input" placeholder="Ex: 1" oninput="converterMassa()">
+                    <div class="resultado" id="res_mg_out">0 mg</div>
+                </div>
+                <div class="conversor-group">
+                    <label>Miligramas (mg) para Microgramas (mcg)</label>
+                    <input type="number" id="mg_input" placeholder="Ex: 0.5" oninput="converterMassa()">
+                    <div class="resultado" id="res_mcg_out">0 mcg</div>
+                </div>
+            </div>
+
+            <div class="conversor-card">
+                <h4>Diluição de Medicamentos</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tenho (mg)</label>
+                        <input type="number" id="tem_mg" oninput="calcularRegraTres()">
+                    </div>
+                    <div class="form-group">
+                        <label>Em (mL)</label>
+                        <input type="number" id="em_ml" oninput="calcularRegraTres()">
+                    </div>
+                </div>
+                <div class="conversor-group">
+                    <label>Prescrito (mg)</label>
+                    <input type="number" id="presc_mg" oninput="calcularRegraTres()">
+                </div>
+                <div class="resultado" id="res_regra_3">Aspirar: 0 mL</div>
+            </div>
+
         </div>
-        
     </main>
 
-    <script src="{{ url_for('static', filename='js/conversions.js') }}"></script>
+    <script>
+        // --- LOGICA DE TEMA (MODO ESCURO) ---
+        function updateThemeIcon() {
+            const toggle = document.getElementById('theme-toggle');
+            const label = document.querySelector('.theme-icon-label');
+            if (toggle && label) {
+                label.setAttribute('data-icon', toggle.checked ? '🌞' : '🌙');
+            }
+        }
+
+        function initTheme() {
+            const toggle = document.getElementById('theme-toggle');
+            if (localStorage.getItem('theme') === 'dark') {
+                document.body.classList.add('dark-mode');
+                if(toggle) toggle.checked = true;
+            }
+            updateThemeIcon();
+        }
+
+        // --- FUNÇÕES DE CÁLCULO ---
+        function converterMlParaGotas() {
+            const ml = document.getElementById('ml_to_gotas').value;
+            document.getElementById('res_gotas').innerText = (ml * 20) + " Gotas";
+        }
+
+        function converterGotasParaMl() {
+            const gotas = document.getElementById('gotas_to_ml').value;
+            document.getElementById('res_ml').innerText = (gotas / 20).toFixed(2) + " mL";
+        }
+
+        function calcularGotejamento() {
+            const v = document.getElementById('vol_infusao').value;
+            const t = document.getElementById('tempo_infusao').value;
+            if (v > 0 && t > 0) {
+                const gotasMin = Math.round(v / (t * 3));
+                const microMin = Math.round(v / t);
+                document.getElementById('res_gotejamento').innerHTML = `${gotasMin} Gotas/min <br><small>${microMin} Microgotas/min</small>`;
+            }
+        }
+
+        function converterMassa() {
+            const g = document.getElementById('g_input').value;
+            document.getElementById('res_mg_out').innerText = (g * 1000) + " mg";
+            const mg = document.getElementById('mg_input').value;
+            document.getElementById('res_mcg_out').innerText = (mg * 1000) + " mcg";
+        }
+
+        function calcularRegraTres() {
+            const tem = document.getElementById('tem_mg').value;
+            const em = document.getElementById('em_ml').value;
+            const presc = document.getElementById('presc_mg').value;
+            if (tem > 0 && em > 0 && presc > 0) {
+                const resultado = (presc * em) / tem;
+                document.getElementById('res_regra_3').innerText = "Aspirar: " + resultado.toFixed(2) + " mL";
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            document.getElementById('theme-toggle').addEventListener('change', () => {
+                document.body.classList.toggle('dark-mode');
+                localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+                updateThemeIcon();
+            });
+        });
+    </script>
 </body>
 </html>

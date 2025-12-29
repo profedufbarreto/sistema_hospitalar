@@ -4,12 +4,17 @@
     <meta charset="UTF-8">
     <title>Novo Prontuário | PEP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
+    </head>
 <body>
     
     <header class="main-header">
         <h2>Registro de Nova Internação</h2>
-        <nav>
+        <nav style="display: flex; align-items: center;">
+            
+            <div class="theme-switcher">
+                <input type="checkbox" id="theme-toggle" title="Alternar Modo de Visualização">
+                <label for="theme-toggle" class="theme-icon-label"></label>
+            </div>
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
             <a href="{{ url_for('prontuario') }}" class="active">Prontuário</a> 
             <a href="{{ url_for('pacientes') }}">Pacientes</a> 
@@ -19,6 +24,7 @@
             {% if session.get('nivel') in ['admin', 'tecnico'] %}
                 <a href="{{ url_for('gerenciar_usuarios') }}">Usuários</a>
             {% endif %}
+            
             <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>
     </header>
@@ -139,8 +145,7 @@
                     <label for="medicamento_entrada_NEW_INDEX">Medicamento Administrado:</label>
                     <select id="medicamento_entrada_NEW_INDEX" 
                             name="medicamento_entrada[]" 
-                            class="medicamento-select"
-                            onchange="toggleOutro(this)">
+                            class="medicamento-select">
                         <option value="">Nenhum/Aguardando</option>
                         {% for med in medicamentos %}
                             <option value="{{ med.nome_medicamento }}">{{ med.nome_medicamento }}</option>
@@ -185,9 +190,62 @@
 
 
     <script>
-        let medIndex = 0; // Contador global para garantir nomes de campos únicos
+        let medIndex = 0; 
 
-        // Função de utilidade para tratar a visibilidade do campo "Outro Medicamento"
+        // =========================================================
+        // LÓGICA MODO CLARO/ESCURO
+        // =========================================================
+        function updateThemeIcon() {
+            const toggle = document.getElementById('theme-toggle');
+            const label = document.querySelector('.theme-icon-label');
+            if (toggle && label) {
+                // Se o modo escuro estiver ativo (checkbox marcado), mostra o SOL (para clicar e clarear)
+                if (toggle.checked) {
+                    label.setAttribute('data-icon', '🌞');
+                } else {
+                    // Se o modo claro estiver ativo (checkbox desmarcado), mostra a LUA (para clicar e escurecer)
+                    label.setAttribute('data-icon', '🌙');
+                }
+            }
+        }
+        
+        function initTheme() {
+            const toggle = document.getElementById('theme-toggle');
+            if (!toggle) return;
+
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            if (savedTheme === 'dark' || (savedTheme === null && prefersDark)) {
+                document.body.classList.add('dark-mode');
+                toggle.checked = true;
+            } else {
+                document.body.classList.remove('dark-mode');
+                toggle.checked = false;
+            }
+            updateThemeIcon(); // Inicializa o ícone correto
+        }
+
+        function toggleTheme() {
+            const toggle = document.getElementById('theme-toggle');
+            if (!toggle) return;
+
+            const isDarkMode = toggle.checked;
+            
+            if (isDarkMode) {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
+            }
+            updateThemeIcon(); // Atualiza o ícone após a troca
+        }
+
+        // =========================================================
+        // LÓGICA DE MÚLTIPLOS MEDICAMENTOS
+        // =========================================================
+        
         function toggleOutro(selectElement) {
             const itemContainer = selectElement.closest('.medication-item');
             if (!itemContainer) return;
@@ -198,7 +256,6 @@
                     outroGroup.style.display = 'flex';
                 } else {
                     outroGroup.style.display = 'none';
-                    // Limpa o valor para não enviar dados desnecessários
                     const inputOutro = outroGroup.querySelector('input[name="outro_medicamento_nome[]"]');
                     if (inputOutro) {
                         inputOutro.value = '';
@@ -207,42 +264,33 @@
             }
         }
         
-        // Função para garantir que os checkboxes enviem 0 quando desmarcados e 1 quando marcados
         function setupCheckboxLogic(itemContainer) {
             const checkbox = itemContainer.querySelector('.sn-checkbox');
-            const hiddenInput = itemContainer.querySelector('.sn-hidden-input');
+            const snInput = itemContainer.querySelector('.sn-hidden-input');
             
-            if (checkbox && hiddenInput) {
-                // Renomeia o hidden input para corresponder ao checkbox
-                hiddenInput.name = checkbox.name.replace('[]', '_hidden'); 
-                
+            if (checkbox && snInput) {
                 checkbox.addEventListener('change', function() {
                     if (this.checked) {
-                        hiddenInput.disabled = true; // Se marcado, só o checkbox envia o valor '1'
+                        snInput.disabled = true; 
                     } else {
-                        hiddenInput.disabled = false; // Se desmarcado, o hidden input envia o valor '0'
+                        snInput.disabled = false;
                     }
                 });
                 
-                // Inicializa o estado (se o template tiver o checkbox default checked)
                 if (checkbox.checked) {
-                    hiddenInput.disabled = true;
+                    snInput.disabled = true;
                 }
             }
         }
 
-
-        // Função principal para adicionar um novo item de medicamento
         function addMedicationItem(isInitial = false) {
             const template = document.getElementById('medication-template');
             const container = document.getElementById('medication-container');
             const clone = template.content.cloneNode(true);
             
-            // Renomeia os IDs e 'name' attributes para serem únicos
             const htmlContent = clone.firstElementChild.innerHTML.replace(/NEW_INDEX/g, medIndex);
             clone.firstElementChild.innerHTML = htmlContent;
 
-            // Se não for o item inicial (o primeiro), exibe o botão de remover
             const removeBtn = clone.querySelector('.remove-med-button');
             if (removeBtn) {
                 if (isInitial) {
@@ -254,10 +302,8 @@
 
             container.appendChild(clone);
             
-            // Configura a lógica do checkbox para o novo item
             setupCheckboxLogic(container.lastElementChild);
             
-            // Adiciona o listener de alteração para o campo 'outro' no novo item
             const newSelect = container.lastElementChild.querySelector('.medicamento-select');
             if(newSelect) {
                  newSelect.addEventListener('change', function() {
@@ -268,7 +314,6 @@
             medIndex++;
         }
         
-        // Função para remover um item de medicamento
         function removeMedicationItem(button) {
             const item = button.closest('.medication-item');
             if (item) {
@@ -276,21 +321,12 @@
             }
         }
         
-        // Lógica de inicialização principal
-        document.addEventListener('DOMContentLoaded', function() {
-            
-            // 1. Adiciona o primeiro item de medicamento
-            addMedicationItem(true); 
+        // =========================================================
+        // MÁSCARAS E CEP
+        // =========================================================
 
-            // 2. Listener para o botão 'Adicionar outro Medicamento'
-            const addMedBtn = document.getElementById('add-med-btn');
-            if (addMedBtn) {
-                addMedBtn.addEventListener('click', function() {
-                    addMedicationItem(false);
-                });
-            }
-
-            // 3. Lógica de máscara de CPF (MANTIDA)
+        function setupMasksAndCep() {
+            // Lógica de máscara de CPF
             const cpfInput = document.getElementById('cpf');
             if (cpfInput) {
                 cpfInput.addEventListener('input', function(e) {
@@ -308,7 +344,7 @@
                 });
             }
 
-            // 4. Lógica de Busca de Endereço via CEP (MANTIDA)
+            // Lógica de Busca de Endereço via CEP (ViaCEP API)
             const cepInput = document.getElementById('cep');
             const enderecoInput = document.getElementById('endereco');
             const bairroInput = document.getElementById('bairro');
@@ -348,6 +384,32 @@
                         });
                 });
             }
+        }
+
+
+        // =========================================================
+        // INICIALIZAÇÃO GERAL
+        // =========================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // 1. Inicializa o tema (Modo Claro/Escuro)
+            initTheme(); 
+            const themeToggleElement = document.getElementById('theme-toggle');
+            if (themeToggleElement) {
+                themeToggleElement.addEventListener('change', toggleTheme);
+            }
+            
+            // 2. Inicializa o primeiro item de medicamento e o botão de adicionar
+            addMedicationItem(true); 
+            const addMedBtn = document.getElementById('add-med-btn');
+            if (addMedBtn) {
+                addMedBtn.addEventListener('click', function() {
+                    addMedicationItem(false);
+                });
+            }
+
+            // 3. Inicializa máscaras e lógica de CEP
+            setupMasksAndCep();
         });
     </script>
 </body>

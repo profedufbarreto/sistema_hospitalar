@@ -1,18 +1,49 @@
 /* static/css/style.css - CONSOLIDADO E ORGANIZADO */
 
 /* ========================================================= */
+/* 0. VARIÁVEIS DE CORES E MODOS */
+/* ========================================================= */
+
+/* --- MODO CLARO (Default) --- */
+:root {
+    --bg-primary: #f0f2f5;       
+    --bg-secondary: #ffffff;    
+    --text-primary: #333333;     
+    --text-secondary: #666666;   
+    --header-bg: #007bff;        
+    --header-text: #ffffff;
+    --border-color: #cccccc;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --form-bg: #ffffff;
+}
+
+/* --- MODO ESCURO --- */
+.dark-mode {
+    --bg-primary: #121212;
+    --bg-secondary: #1e1e1e;
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --header-bg: #007bff; 
+    --header-text: #ffffff;
+    --border-color: #444444;
+    --shadow-color: rgba(0, 0, 0, 0.4);
+    --form-bg: #2d2d2d;
+}
+
+/* ========================================================= */
 /* 1. CONFIGURAÇÃO GERAL E TIPOGRAFIA */
 /* ========================================================= */
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f0f2f5;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     margin: 0;
     min-height: 100vh;
-    padding-top: 70px; /* Espaço para o cabeçalho FIXO */
+    padding-top: 70px; 
+    transition: background-color 0.3s, color 0.3s;
 }
 
-/* --- Wrapper de Conteúdo Principal (Usado para centralizar) --- */
 .content-wrapper {
     padding: 20px; 
     max-width: 1200px; 
@@ -22,19 +53,17 @@ body {
 
 
 /* ========================================================= */
-/* 2. CABEÇALHO E NAVEGAÇÃO GLOBAL (Dashboard Header) */
+/* 2. CABEÇALHO, NAVEGAÇÃO E SELETOR DE TEMA */
 /* ========================================================= */
 
 .main-header {
-    /* Tornar o cabeçalho FIXO no topo */
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    z-index: 1000; /* Garante que fique acima de outros elementos */
-    /* Estilos Visuais */
-    background-color: #007bff;
-    color: white;
+    z-index: 1000; 
+    background-color: var(--header-bg);
+    color: var(--header-text);
     padding: 15px 30px;
     display: flex;
     justify-content: space-between;
@@ -48,13 +77,21 @@ body {
     font-weight: 300;
 }
 
+.main-header nav {
+    display: flex; 
+    align-items: center;
+    gap: 5px; 
+    padding-right: 20px; 
+}
+
 .main-header nav a {
     color: white;
     text-decoration: none;
-    margin-left: 20px;
-    padding: 5px 10px;
+    padding: 8px 12px;
     border-radius: 4px;
     transition: background-color 0.3s;
+    white-space: nowrap;
+    margin-left: 5px;
 }
 
 .main-header nav a:hover, 
@@ -62,39 +99,80 @@ body {
     background-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Botão Sair */
+/* Botão Sair - POSICIONAMENTO CORRIGIDO */
 .btn-logout {
     background-color: #dc3545;
     padding: 8px 15px !important;
     font-weight: bold;
+    /* Move o botão para a esquerda (longe da borda) e separa dos outros links */
+    margin-left: 30px !important; 
+    margin-right: -10px; /* Ajuda a compensar o padding do header */
 }
 
 .btn-logout:hover {
     background-color: #c82333 !important;
 }
 
+/* --- Estilos do Seletor de Tema UNIFICADO --- */
+.theme-switcher {
+    display: flex;
+    align-items: center;
+    gap: 0; 
+    margin-right: 20px; 
+    margin-left: 0; 
+}
+
+.theme-switcher input[type="checkbox"] {
+    display: none;
+}
+
+.theme-icon-label {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1.5em; 
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: background-color 0.3s;
+    position: relative;
+    padding: 0;
+}
+
+.theme-icon-label:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Geração do ícone Sol/Lua (usando o JS para definir o atributo data-icon) */
+.theme-icon-label::before {
+    content: attr(data-icon);
+    line-height: 1; 
+    font-size: 1em;
+    transition: transform 0.3s;
+}
 
 /* ========================================================= */
 /* 3. MÓDULO LOGIN (ESTILOS CENTRAIS) */
 /* ========================================================= */
 
-/* Centraliza APENAS o container de login */
 .login-body {
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
     margin: 0;
-    background-color: #f4f7f9;
+    background-color: var(--bg-primary); 
 }
 
 .login-container {
     width: 100%;
     max-width: 380px;
     padding: 40px;
-    background: white;
+    background: var(--bg-secondary);
     border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 15px var(--shadow-color);
     text-align: center;
 }
 
@@ -113,7 +191,7 @@ body {
     display: block;
     margin-bottom: 8px;
     font-weight: bold;
-    color: #333;
+    color: var(--text-secondary);
 }
 
 .form-group input, 
@@ -121,10 +199,12 @@ body {
 .form-group textarea {
     width: 100%;
     padding: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border-color);
     border-radius: 5px;
     box-sizing: border-box; 
     transition: border-color 0.3s;
+    background-color: var(--form-bg);
+    color: var(--text-primary);
 }
 
 .form-group input:focus, 
@@ -134,7 +214,6 @@ body {
     outline: none;
 }
 
-/* Botão padrão (Usado para login/salvar em formulários) */
 .btn-login {
     width: 100%;
     padding: 12px;
@@ -166,12 +245,11 @@ body {
 /* 4. LAYOUT DE FORMULÁRIO (Compartilhado por Prontuário/PV) */
 /* ========================================================= */
 
-/* Layout Flex para linhas de formulário com campos lado a lado */
 .form-row { 
     display: flex; 
     gap: 20px; 
     margin-bottom: 15px; 
-    align-items: flex-start; /* Alinhamento ao topo, ajustado para flexibilidade */
+    align-items: flex-start; 
 }
 
 .form-row > .form-group { 
@@ -185,7 +263,7 @@ body {
 
 .dashboard-content {
     padding: 30px;
-    max-width: 1400px; /* Mais largura para gráficos */
+    max-width: 1400px;
     margin: 0 auto;
 }
 
@@ -198,10 +276,10 @@ body {
 }
 
 .card {
-    background-color: #ffffff;
+    background-color: var(--bg-secondary);
     border-radius: 8px;
     padding: 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px var(--shadow-color);
     flex: 1;
     text-align: center;
     min-width: 200px;
@@ -214,7 +292,7 @@ body {
 
 .card h4 {
     margin-top: 0;
-    color: #666;
+    color: var(--text-secondary);
     font-size: 1em;
 }
 
@@ -227,9 +305,12 @@ body {
 .card-internados .kpi-value { color: #007bff; }
 .card-altas .kpi-value { color: #28a745; }
 .card-estoque .kpi-value { color: #ffc107; }
-.card-pv .kpi-value { color: #20b2aa; } /* Cor nova para PV */
+.card-pv .kpi-value { color: #20b2aa; } 
 
-/* Alerta visual para baixo estoque */
+.dark-mode .card-internados .kpi-value { color: #5B9AFF; }
+.dark-mode .card-altas .kpi-value { color: #64ff7e; }
+.dark-mode .card-estoque .kpi-value { color: #ffeb3b; }
+
 .kpi-alerta { 
     color: #dc3545 !important;
     animation: pulse 1s infinite alternate;
@@ -248,17 +329,16 @@ body {
     margin-top: 30px;
 }
 
-/* Contêiner do gráfico de linha de Movimentação (Largura Total) */
 .charts-full-width {
     width: 100%;
     margin-bottom: 30px;
 }
 
 .chart-container {
-    background-color: #ffffff;
+    background-color: var(--bg-secondary);
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px var(--shadow-color);
 }
 
 .chart-header {
@@ -271,22 +351,21 @@ body {
 .chart-header h3 {
     margin: 0;
     font-size: 1.2em;
-    color: #333;
+    color: var(--text-primary);
 }
 
-/* Contêiner para os gráficos de análise de 50% */
 .charts-analysis {
     display: flex;
-    flex: 3; /* Ocupa a maior parte da largura */
+    flex: 3;
     gap: 20px;
 }
 
 .chart-half {
     flex: 1;
-    background-color: #fff;
+    background-color: var(--bg-secondary);
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px var(--shadow-color);
     min-height: 350px;
 }
 
@@ -294,23 +373,22 @@ body {
     text-align: center;
     margin-top: 0;
     font-size: 1.1em;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 15px;
 }
 
-/* Painel de Ações Rápidas */
 .info-painel {
-    flex: 1; /* Ocupa 1/4 da largura */
-    background-color: #fff;
+    flex: 1;
+    background-color: var(--bg-secondary);
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px var(--shadow-color);
 }
 
 .info-block {
     margin-bottom: 20px;
     padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .info-block:last-child {
@@ -334,11 +412,11 @@ body {
     font-size: 0.95em;
 }
 
-/* Botões de Filtro */
 .btn-filter {
     padding: 8px 15px;
-    border: 1px solid #ccc;
-    background-color: #f8f9fa;
+    border: 1px solid var(--border-color);
+    background-color: var(--form-bg);
+    color: var(--text-primary);
     cursor: pointer;
     border-radius: 5px;
     transition: background-color 0.2s, border-color 0.2s;
@@ -347,7 +425,7 @@ body {
 }
 
 .btn-filter:hover {
-    background-color: #e9ecef;
+    background-color: var(--bg-primary);
 }
 
 .btn-filter.active {
@@ -356,7 +434,6 @@ body {
     border-color: #007bff;
 }
 
-/* Botões de Ação Rápida (Full Width) */
 .btn-full-width {
     display: block;
     width: 100%;
@@ -370,9 +447,8 @@ body {
     color: white;
 }
 
-/* Cores dos botões do painel */
 .info-block a[href*="prontuario"] { background-color: #007bff; }
-.info-block a[href*="estoque"] { background-color: #ffc107; color: #333; }
+.info-block a[href*="estoque"] { color: var(--text-primary); background-color: #ffc107; }
 .info-block a[href*="estoque"]:hover { background-color: #e0a800; }
 .info-block a[href*="prontuario"]:hover { background-color: #0056b3; }
 
@@ -385,23 +461,22 @@ body {
     max-width: 800px; 
     margin: 30px auto; 
     padding: 20px; 
-    background: white; 
+    background: var(--bg-secondary); 
     border-radius: 8px; 
-    box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+    box-shadow: 0 0 10px var(--shadow-color); 
 }
 
 .prontuario-form-container h3 { 
-    border-bottom: 1px solid #ccc; 
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 10px; 
     margin-bottom: 20px; 
-    color: #007bff; 
+    color: var(--text-primary);
 }
 
 .prontuario-form-container .form-row .form-group label {
-    margin-bottom: 5px; /* Volta o label ao topo do form-group, menos espaçamento */
+    margin-bottom: 5px;
 }
 
-/* Estilo do checkbox-sn quando não é forçado pelo form-row */
 .checkbox-sn { 
     display: flex; 
     align-items: center; 
@@ -415,7 +490,45 @@ body {
     margin-top: 30px; 
 }
 
-/* Estilo para o botão de Prova de Vida */
+.add-med-button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1.2em;
+    margin-top: 10px;
+}
+.remove-med-button {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1em;
+    margin-left: 10px;
+    height: 40px; 
+    align-self: flex-end;
+    margin-bottom: 5px;
+}
+.medication-item {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    border-radius: 5px;
+}
+.medication-item .form-group {
+    margin-right: 10px;
+}
+.form-row.outro-medicamento-group {
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
 .btn-prova-vida { 
     background-color: #28a745; 
     color: white; 
@@ -432,7 +545,6 @@ body {
     background-color: #1e7e34;
 }
 
-/* Inicialmente esconde o campo 'Outro Medicamento', o JS vai controlar */
 #outro_medicamento_group {
     display: none;
 }
@@ -446,19 +558,18 @@ body {
     max-width: 700px; 
     margin: 30px auto; 
     padding: 30px; 
-    background: white; 
+    background: var(--bg-secondary); 
     border-radius: 8px; 
-    box-shadow: 0 0 15px rgba(0,0,0,0.1); 
+    box-shadow: 0 0 15px var(--shadow-color); 
 }
 
 .pv-container h3 { 
     color: #20b2aa; 
-    border-bottom: 1px solid #eee; 
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 15px; 
     margin-bottom: 30px; 
 }
 
-/* Estilos para campos com unidade de medida */
 .input-with-unit { 
     display: flex; 
     align-items: center; 
@@ -471,12 +582,11 @@ body {
 
 .input-with-unit span { 
     font-weight: bold; 
-    color: #666; 
+    color: var(--text-secondary);
     width: 40px; 
     text-align: left; 
 }
 
-/* Ajuste de cor para o botão de registro da Prova de Vida */
 .pv-container .btn-login {
     background-color: #20b2aa;
 }
@@ -504,7 +614,7 @@ body {
 
 .btn-add { 
     background-color: #ffc107; 
-    color: #333; 
+    color: var(--text-primary);
     padding: 10px 15px; 
     border: none; 
     border-radius: 4px; 
@@ -516,24 +626,24 @@ body {
     background-color: #e0b431; 
 }
 
-/* Estilos de Tabela (Geral) */
 table { 
     width: 100%; 
     border-collapse: collapse; 
-    background-color: white; 
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+    background-color: var(--bg-secondary);
+    box-shadow: 0 1px 3px var(--shadow-color);
+    color: var(--text-primary);
 }
 th, td { 
     padding: 12px; 
     text-align: left; 
-    border-bottom: 1px solid #ddd; 
+    border-bottom: 1px solid var(--border-color);
 }
 th { 
     background-color: #007bff; 
     color: white; 
 }
 tr:hover { 
-    background-color: #f5f5f5; 
+    background-color: var(--bg-primary);
 }
 .low-stock { 
     background-color: #f8d7da; 
@@ -541,7 +651,6 @@ tr:hover {
     font-weight: bold; 
 }
 
-/* Modal para Adicionar/Editar */
 .modal { 
     display: none; 
     position: fixed; 
@@ -554,22 +663,22 @@ tr:hover {
     background-color: rgba(0,0,0,0.4); 
 }
 .modal-content { 
-    background-color: #fefefe; 
+    background-color: var(--bg-secondary);
     margin: 10% auto; 
     padding: 20px; 
-    border: 1px solid #888; 
+    border: 1px solid var(--border-color);
     width: 80%; 
     max-width: 400px; 
     border-radius: 8px; 
 }
 .close-btn { 
-    color: #aaa; 
+    color: var(--text-secondary);
     float: right; 
     font-size: 28px; 
     font-weight: bold; 
 }
 .close-btn:hover, .close-btn:focus { 
-    color: #000; 
+    color: var(--text-primary);
     text-decoration: none; 
     cursor: pointer; 
 }
@@ -601,15 +710,15 @@ tr:hover {
     max-width: 600px; 
     margin: 30px auto; 
     padding: 30px; 
-    background: white; 
+    background: var(--bg-secondary); 
     border-radius: 8px; 
-    box-shadow: 0 0 15px rgba(0,0,0,0.1); 
+    box-shadow: 0 0 15px var(--shadow-color); 
     text-align: center; 
 }
 
 .conversor-container h3 { 
     color: #007bff; 
-    border-bottom: 1px solid #eee; 
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 15px; 
     margin-bottom: 30px; 
 }
@@ -617,7 +726,7 @@ tr:hover {
 .conversor-group { 
     margin-bottom: 25px; 
     padding: 15px; 
-    border: 1px dashed #ccc; 
+    border: 1px dashed var(--border-color);
     border-radius: 6px; 
 }
 
@@ -625,7 +734,7 @@ tr:hover {
     font-weight: bold; 
     margin-bottom: 8px; 
     display: block; 
-    color: #333; 
+    color: var(--text-primary);
 }
 
 .conversor-group input { 
@@ -633,7 +742,7 @@ tr:hover {
     padding: 12px; 
     font-size: 1.2em; 
     text-align: center; 
-    border: 2px solid #ddd; 
+    border: 2px solid var(--border-color);
     border-radius: 4px; 
     transition: border-color 0.3s; 
 }
@@ -656,7 +765,7 @@ tr:hover {
 
 .observacao { 
     font-size: 0.9em; 
-    color: #6c757d; 
+    color: var(--text-secondary);
     margin-top: 15px; 
 }
 
@@ -672,8 +781,8 @@ tr:hover {
 }
 
 .arquivo-container h3 { 
-    color: #5a6268; 
-    border-bottom: 1px solid #eee; 
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 10px; 
     margin-bottom: 20px; 
 }
@@ -702,10 +811,9 @@ tr:hover {
     margin-bottom: 15px; 
 }
 
-/* Estilos de Tabela para Arquivo (Se diferente do estoque) */
 .arquivo-container table th,
 .arquivo-container table td {
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
     padding: 8px;
     text-align: left;
 }
@@ -724,9 +832,9 @@ tr:hover {
     max-width: 900px; 
     margin: 30px auto; 
     padding: 30px; 
-    background: white; 
+    background: var(--bg-secondary); 
     border-radius: 8px; 
-    box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+    box-shadow: 0 0 10px var(--shadow-color); 
 }
 
 .section-header { 
@@ -739,46 +847,41 @@ tr:hover {
 .data-item { 
     margin-bottom: 10px; 
     line-height: 1.5;
-    display: flex; /* Adicionado para alinhar o strong e o valor */
+    display: flex;
 }
 
 .data-item strong { 
     display: inline-block; 
-    min-width: 150px; /* Garante alinhamento dos dois pontos */
-    color: #333; 
+    min-width: 150px; 
+    color: var(--text-primary);
 }
 
-/* NOVO ESTILO: Para o campo Procedimento/Motivo */
-/* Garante que o texto longo quebre corretamente */
 .procedimento-data-item {
-    display: block; /* Ocupa a largura total para permitir quebra de linha */
+    display: block; 
 }
 
 .procedimento-data-item strong {
     display: inline-block; 
     min-width: 150px;
-    margin-right: 5px; /* Pequeno espaço entre o label e o texto */
+    margin-right: 5px; 
 }
 
 .procedimento-texto {
-    display: inline; /* Permite que o span comece logo após o strong */
-    white-space: normal; /* Permite a quebra de linha normal */
-    word-wrap: break-word; /* Força a quebra de palavras longas (ajuda na sobreposição) */
-    flex: 1; /* Ocupa o restante do espaço */
+    display: inline; 
+    white-space: normal; 
+    word-wrap: break-word; 
+    flex: 1; 
 }
-/* FIM NOVO ESTILO */
 
-
-/* Estilos para a lista de Prova de Vida no Detalhes */
 .prova-vida-list { 
     margin-top: 20px; 
-    border: 1px solid #ddd; 
+    border: 1px solid var(--border-color);
     padding: 15px; 
     border-radius: 6px; 
 }
 
 .prova-vida-item { 
-    border-bottom: 1px dashed #eee; 
+    border-bottom: 1px dashed var(--border-color);
     padding: 10px 0; 
 }
 
@@ -800,7 +903,7 @@ tr:hover {
 .pv-obs { 
     margin-top: 5px; 
     font-style: italic; 
-    color: #6c757d; 
+    color: var(--text-secondary);
 }
 
 
@@ -808,23 +911,20 @@ tr:hover {
 /* 12. AJUSTES DE BOTÕES DE AÇÃO (PRONTUÁRIO/USUÁRIOS) */
 /* ========================================================= */
 
-/* Botão de Ação Pequeno (Ex: Adicionar Prova de Vida / Excluir/Detalhes) */
 .btn-action-pequeno {
-    padding: 6px 12px !important; /* Reduz o padding */
-    font-size: 0.9em !important; /* Torna a fonte menor */
+    padding: 6px 12px !important; 
+    font-size: 0.9em !important; 
     border-radius: 4px;
-    margin-left: 10px; /* Espaçamento entre botões */
+    margin-left: 10px; 
     text-align: center;
-    white-space: nowrap; /* Não quebra a linha */
+    white-space: nowrap; 
 }
 
-/* Aplica o estilo pequeno ao botão de Prova de Vida no Prontuário */
 .action-buttons .btn-prova-vida {
-    padding: 8px 15px; /* Deixa um pouco maior que o mínimo, mas menor que o principal */
+    padding: 8px 15px; 
     font-size: 1em;
 }
 
-/* Estilo para botões de Excluir em tabelas (gerenciamento de usuários) */
 .tabela-acoes .btn-excluir,
 .tabela-acoes .btn-detalhes {
     padding: 4px 8px; 
@@ -833,9 +933,6 @@ tr:hover {
     display: inline-block;
 }
 
-/* Em static/css/style.css */
-
-/* --- Estilos para Mensagens Flash --- */
 .flash-messages {
     margin-bottom: 20px;
 }
@@ -867,8 +964,6 @@ tr:hover {
     border-color: #f5c6cb;
 }
 
-/* --- Dashboard Charts Layout (CONSOLIDADOS) --- */
-
 .dashboard-visuals {
     display: flex;
     gap: 20px;
@@ -876,17 +971,16 @@ tr:hover {
     margin-top: 30px;
 }
 
-/* Novo Contêiner de Largura Total para Gráfico de Linha */
 .charts-full-width {
     width: 100%;
     margin-bottom: 30px;
 }
 
 .chart-container {
-    background-color: #ffffff;
+    background-color: var(--bg-secondary);
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px var(--shadow-color);
 }
 
 .chart-header {
@@ -899,48 +993,43 @@ tr:hover {
 .chart-header h3 {
     margin: 0;
     font-size: 1.2em;
-    color: #333;
+    color: var(--text-primary);
 }
 
-
-/* Contêiner para os gráficos de análise de 50% */
 .charts-analysis {
     display: flex;
-    flex: 3; /* Ocupa 3/4 da largura no layout flex */
+    flex: 3; 
     gap: 20px;
 }
 
 .chart-half {
     flex: 1;
-    background-color: #fff;
+    background-color: var(--bg-secondary);
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px var(--shadow-color);
     min-height: 350px;
 }
 
 .chart-half h3 {
-    text-align: center;
-    margin-top: 0;
+    margin: 0;
     font-size: 1.1em;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 15px;
 }
 
-/* Painel de Ações Rápidas */
 .info-painel {
-    flex: 1; /* Ocupa 1/4 da largura no layout flex */
-    background-color: #fff;
+    flex: 1; 
+    background-color: var(--bg-secondary);
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px var(--shadow-color);
 }
 
-/* Botões de Filtro */
 .btn-filter {
     padding: 8px 15px;
-    border: 1px solid #ccc;
-    background-color: #f8f9fa;
+    border: 1px solid var(--border-color);
+    background-color: var(--form-bg);
     cursor: pointer;
     border-radius: 5px;
     transition: background-color 0.2s, border-color 0.2s;
@@ -949,7 +1038,7 @@ tr:hover {
 }
 
 .btn-filter:hover {
-    background-color: #e9ecef;
+    background-color: var(--bg-primary);
 }
 
 .btn-filter.active {
@@ -959,18 +1048,100 @@ tr:hover {
 }
 
 
-/* Responsividade básica (JÁ ESTAVA CORRETA) */
 @media (max-width: 1200px) {
     .dashboard-visuals {
         flex-direction: column;
     }
     
     .charts-analysis {
-        flex-direction: column; /* Pilha os gráficos de análise em telas menores */
+        flex-direction: column; 
     }
 
     .charts-analysis, .chart-half, .info-painel {
         flex: none;
         width: 100%;
     }
+}
+
+/* Seção 9 - Módulo Conversor */
+.conversor-container { 
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 25px;
+    max-width: 1200px;
+    margin: 30px auto; 
+    padding: 0 20px;
+}
+
+.conversor-card {
+    background: var(--bg-secondary);
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px var(--shadow-color);
+    border-top: 5px solid var(--header-bg);
+    transition: transform 0.3s ease;
+}
+
+.resultado { 
+    margin-top: 10px; 
+    padding: 15px; 
+    background-color: rgba(40, 167, 69, 0.1); 
+    border: 1px solid var(--accent-success); 
+    border-radius: 6px; 
+    font-weight: bold; 
+    color: var(--accent-success); 
+    text-align: center;
+}
+
+/* NOVOS AJUSTES PARA FILTROS DE KPI NO CARD */
+.card-header-kpi {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+
+.card-header-kpi h4 {
+    margin-bottom: 0 !important;
+}
+
+.kpi-filter {
+    border: 1px solid var(--border-color);
+    background-color: var(--form-bg);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    font-size: 0.7em;
+    padding: 2px 4px;
+    cursor: pointer;
+    outline: none;
+}
+
+/* GARANTIA DE EXIBIÇÃO DO ÍCONE SOL/LUA */
+.theme-icon-label::before {
+    content: attr(data-icon);
+    display: block;
+    line-height: 40px;
+    text-align: center;
+}
+
+/* Container para organizar dois gráficos lado a lado */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+/* Ajuste de altura para os gráficos menores não esticarem a página */
+.chart-container-small {
+    background-color: var(--bg-secondary);
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px var(--shadow-color);
+    min-height: 300px; /* Altura controlada */
+}
+
+.chart-container-small canvas {
+    max-height: 250px !important; /* Limita o crescimento do gráfico */
 }
