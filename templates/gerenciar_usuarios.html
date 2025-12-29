@@ -2,15 +2,14 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Gerenciamento de Usuários</title>
+    <title>Gerenciamento de Usuários | PEP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     
     <header class="main-header">
-        <h2>Gerenciamento | PEP</h2> 
+        <h2>Sistema Hospitalar | PEP</h2> 
         <nav style="display: flex; align-items: center;">
-        
             <div class="theme-switcher">
                 <input type="checkbox" id="theme-toggle" title="Alternar Modo de Visualização">
                 <label for="theme-toggle" class="theme-icon-label"></label>
@@ -19,14 +18,8 @@
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
             <a href="{{ url_for('prontuario') }}">Prontuário</a>
             <a href="{{ url_for('pacientes') }}">Pacientes</a> 
-            <a href="{{ url_for('estoque') }}">Estoque</a>
-            <a href="{{ url_for('conversor') }}">Conversor</a> 
             <a href="{{ url_for('arquivo') }}">Arquivo</a> 
-            
-            {% if session.get('nivel') in ['admin', 'enfermeiro'] %}
-                <a href="{{ url_for('gerenciar_usuarios') }}" class="active">Usuários</a>
-            {% endif %}
-            
+            <a href="{{ url_for('gerenciar_usuarios') }}" class="active">Usuários</a>
             <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
         </nav>
     </header>
@@ -34,7 +27,7 @@
     <main class="usuarios-container">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="flash-messages" style="margin-bottom: 20px;">
+                <div class="flash-messages">
                     {% for category, message in messages %}
                         <div class="alert alert-{{ category }}">{{ message }}</div>
                     {% endfor %}
@@ -42,118 +35,161 @@
             {% endif %}
         {% endwith %}
 
-        {% if niveis_permitidos %}
-        <div class="form-adicionar">
-            <h4>Adicionar Novo Usuário</h4>
-            <form action="{{ url_for('adicionar_usuario') }}" method="POST">
+        <section class="form-adicionar card">
+            <h4>➕ Adicionar Novo Usuário</h4>
+            <p><small>Perfil: <strong>{{ nivel_logado | upper }}</strong></small></p>
+            
+            <form action="{{ url_for('adicionar_usuario') }}" method="POST" class="grid-form">
                 <input type="text" name="nome_completo" placeholder="Nome Completo" required>
-                <input type="text" name="usuario" placeholder="Usuário (login)" required>
-                <input type="password" name="nova_senha" placeholder="Senha Desejada" required>
+                <input type="text" name="usuario" placeholder="Login de Usuário" required>
+                <input type="password" name="nova_senha" placeholder="Senha" required>
                 <input type="date" name="data_nascimento" required>
-
+                
                 <select name="nacionalidade" required>
-                    <option value="">Nacionalidade</option>
-                    <option value="BR">🇧🇷 Brasil (BR)</option>
-                    <option value="AR">🇦🇷 Argentina (AR)</option>
-                    <option value="PY">🇵🇾 Paraguai (PY)</option>
-                    <option value="US">🇺🇸 Estados Unidos (US)</option>
-                    <option value="VE">🇻🇪 Venezuela (VE)</option>
+                    <option value="" disabled selected>Nacionalidade</option>
+                    <option value="BR">Brasil</option>
+                    <option value="AR">Argentina</option>
+                    <option value="PY">Paraguai</option>
                     <option value="OT">Outra</option>
                 </select>
-                
+
                 <select name="nivel_acesso" required>
-                    <option value="">Nível de Acesso</option>
+                    <option value="" disabled selected>Nível de Acesso</option>
                     {% for nivel in niveis_permitidos %}
-                    <option value="{{ nivel }}">
-                        {{ 'Enfermeiro (Acesso Total)' if nivel == 'enfermeiro' else 'Estagiário (Acesso Restrito)' if nivel == 'estagiario' else nivel | upper }}
-                    </option>
+                        <option value="{{ nivel }}">{{ nivel | upper }}</option>
                     {% endfor %}
                 </select>
-                
-                <button type="submit" style="grid-column: span 2;">Adicionar</button>
-            </form>
-            
-            {% if nivel_logado == 'admin' %}
-                <p style="margin-top: 10px; font-size: 0.9em;">* Como Admin, você pode gerenciar Enfermeiros e Estagiários.</p>
-            {% endif %}
-        </div>
-        {% endif %}
-        
-        <h3>Lista de Usuários no Sistema (Seu Nível: {{ nivel_logado | upper }})</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Nome Completo</th>
-                    <th>Usuário</th>
-                    <th>Nacionalidade</th>
-                    <th>Data Nasc.</th>
-                    <th>Nível de Acesso</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in usuarios %}
-                <tr>
-                    <td>{{ user.id }}</td>
-                    <td>{{ user.nome_completo }}</td>
-                    <td>{{ user.usuario }}</td>
-                    <td>{{ user.nacionalidade }}</td>
-                    <td>{{ user.data_nascimento }}</td>
-                    <td>
-                        <span class="nivel-{{ user.nivel_acesso }}">{{ user.nivel_acesso | upper }}</span>
-                    </td>
-                    <td>
-                        {% set pode_excluir = false %}
-                        
-                        {# Admin pode excluir Enfermeiro ou Estagiário #}
-                        {% if nivel_logado == 'admin' and user.nivel_acesso != 'admin' %}
-                            {% set pode_excluir = true %}
-                        {# Enfermeiro pode excluir Estagiário #}
-                        {% elif nivel_logado == 'enfermeiro' and user.nivel_acesso == 'estagiario' %}
-                            {% set pode_excluir = true %}
-                        {% endif %}
 
-                        {% if pode_excluir %}
-                        <form action="{{ url_for('excluir_usuario', user_id=user.id) }}" method="POST" style="display:inline;">
-                            <button type="submit" class="btn-excluir" onclick="return confirm('Tem certeza que deseja excluir {{ user.usuario }}?')">Excluir</button>
-                        </form>
-                        {% else %}
-                        (Sem Permissão)
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                <button type="submit" class="btn-adicionar" style="grid-column: span 2;">Cadastrar</button>
+            </form>
+        </section>
+
+        <hr class="separator">
+
+        <section class="lista-usuarios card">
+            <h3>👥 Usuários Cadastrados</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome Completo</th>
+                        <th>Login</th>
+                        <th>Nível</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in usuarios %}
+                    <tr>
+                        <td>{{ user.nome_completo }}</td>
+                        <td><code>{{ user.usuario }}</code></td>
+                        <td><span class="badge nivel-{{ user.nivel_acesso }}">{{ user.nivel_acesso | upper }}</span></td>
+                        <td class="acoes-flex">
+                            <button class="btn-editar" 
+                                    onclick="abrirModalEdicao('{{ user.id }}', '{{ user.nome_completo }}', '{{ user.usuario }}', '{{ user.nivel_acesso }}', '{{ user.nacionalidade }}')">
+                                Editar
+                            </button>
+
+                            {% if user.id != session.get('usuario_id') %}
+                                <form action="{{ url_for('excluir_usuario', user_id=user.id) }}" method="POST" style="display:inline;">
+                                    <button type="submit" class="btn-excluir" onclick="return confirm('Excluir este usuário?')">Excluir</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
     </main>
 
+    <div id="modalEdicao" class="modal">
+        <div class="modal-content card">
+            <span class="close-modal" onclick="fecharModal()">&times;</span>
+            <h3>📝 Editar Perfil de Usuário</h3>
+            <form id="formEditar" method="POST" class="grid-form">
+                
+                <div class="form-group">
+                    <label>Nome Completo:</label>
+                    <input type="text" name="nome_completo" id="edit_nome" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Login (Usuário):</label>
+                    <input type="text" name="usuario" id="edit_usuario" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Nível de Acesso:</label>
+                    <select name="nivel_acesso" id="edit_nivel" required>
+                        {% for n in niveis_permitidos %}
+                            <option value="{{ n }}">{{ n | upper }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Nacionalidade:</label>
+                    <select name="nacionalidade" id="edit_nacionalidade" required>
+                        <option value="BR">Brasil</option>
+                        <option value="AR">Argentina</option>
+                        <option value="PY">Paraguai</option>
+                        <option value="OT">Outra</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Alterar Senha (opcional):</label>
+                    <input type="password" name="nova_senha" placeholder="Deixe em branco para manter a atual">
+                </div>
+
+                <button type="submit" class="btn-save" style="margin-top: 20px;">Salvar Alterações</button>
+            </form>
+        </div>
+    </div>
+
     <script>
+        // Funções do Modal de Edição
+        function abrirModalEdicao(id, nome, login, nivel, nacionalidade) {
+            document.getElementById('modalEdicao').style.display = 'block';
+            document.getElementById('edit_nome').value = nome;
+            document.getElementById('edit_usuario').value = login; // Novo campo preenchido
+            document.getElementById('edit_nivel').value = nivel;
+            document.getElementById('edit_nacionalidade').value = nacionalidade;
+            
+            // Define a rota de destino do formulário dinamicamente
+            document.getElementById('formEditar').action = "/usuarios/editar/" + id;
+        }
+
+        function fecharModal() {
+            document.getElementById('modalEdicao').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('modalEdicao');
+            if (event.target == modal) fecharModal();
+        }
+
+        // Lógica do Tema (Dark Mode)
         function updateThemeIcon() {
             const toggle = document.getElementById('theme-toggle');
             const label = document.querySelector('.theme-icon-label');
-            if (toggle && label) {
-                label.setAttribute('data-icon', toggle.checked ? '🌞' : '🌙');
-            }
+            if (toggle && label) label.setAttribute('data-icon', toggle.checked ? '🌞' : '🌙');
         }
-        function initTheme() {
+
+        document.addEventListener('DOMContentLoaded', () => {
             const toggle = document.getElementById('theme-toggle');
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'dark') {
+            if (localStorage.getItem('theme') === 'dark') {
                 document.body.classList.add('dark-mode');
                 if(toggle) toggle.checked = true;
             }
             updateThemeIcon();
-        }
-        function toggleTheme() {
-            document.body.classList.toggle('dark-mode');
-            const isDark = document.body.classList.contains('dark-mode');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            updateThemeIcon();
-        }
-        document.addEventListener('DOMContentLoaded', () => {
-            initTheme();
-            document.getElementById('theme-toggle').addEventListener('change', toggleTheme);
+            if(toggle) {
+                toggle.addEventListener('change', () => {
+                    document.body.classList.toggle('dark-mode');
+                    localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+                    updateThemeIcon();
+                });
+            }
         });
     </script>
 </body>
