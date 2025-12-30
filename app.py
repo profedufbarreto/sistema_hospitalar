@@ -426,17 +426,29 @@ def salvar_estoque():
     if session['nivel'] not in ['admin', 'tecnico']:
         flash("Acesso negado: Apenas Administradores e Técnicos podem alimentar o estoque.", "danger")
         return redirect(url_for('estoque'))
+    
     dados = request.form
+    # AJUSTE REALISTA: Cria um nome técnico, ex: "Dipirona 500mg"
+    nome_com_dosagem = f"{dados['nome'].strip()} {dados.get('dosagem', '').strip()}".strip()
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        # Sua lógica original está 100% preservada aqui
         sql = """INSERT INTO Estoque (nome_medicamento, quantidade, unidade, data_ultima_entrada, usuario_ultima_alteracao) 
                   VALUES (%s, %s, %s, NOW(), %s) ON DUPLICATE KEY UPDATE 
                   quantidade = quantidade + VALUES(quantidade), data_ultima_entrada = NOW(), 
                   usuario_ultima_alteracao = VALUES(usuario_ultima_alteracao)"""
-        cursor.execute(sql, (dados['nome'].strip(), int(dados['quantidade']), dados['unidade'], session['usuario']))
+        
+        # O campo 'quantidade' vem do JS do formulário (multiplicação de caixas x itens)
+        cursor.execute(sql, (nome_com_dosagem, int(dados['quantidade']), dados['unidade'], session['usuario']))
         conn.commit()
-    finally: conn.close()
+        flash(f"Estoque de {nome_com_dosagem} atualizado!", "success")
+    except Exception as e:
+        print(f"Erro ao salvar: {e}")
+        flash("Erro técnico ao salvar no banco de dados.", "danger")
+    finally: 
+        conn.close()
     return redirect(url_for('estoque'))
 
 @app.route('/estoque/editar/<int:item_id>', methods=['POST'])
@@ -454,6 +466,43 @@ def editar_estoque(item_id):
         cursor.execute(sql, (dados['nome_medicamento'], dados['quantidade'], dados['unidade'], session['usuario'], item_id))
         conn.commit()
     finally: conn.close()
+    return redirect(url_for('estoque'))
+
+@app.route('/estoque/baixa_perda/<int:item_id>', methods=['POST'])
+@login_required
+def baixa_perda_estoque(item_id):
+    # Segurança: Apenas Admin e Técnico
+    if session.get('nivel') not in ['admin', 'tecnico']:
+        flash("Acesso negado.", "danger")
+        return redirect(url_for('estoque'))
+    
+    quantidade_baixa = int(request.form.get('quantidade_baixa', 0))
+    motivo = request.form.get('motivo', 'Vencimento/Avaria')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Primeiro, verificamos se há estoque suficiente para dar baixa
+        cursor.execute("SELECT quantidade, nome_medicamento FROM Estoque WHERE id = %s", (item_id,))
+        item = cursor.fetchone()
+        
+        if item and item['quantidade'] >= quantidade_baixa:
+            sql = """UPDATE Estoque 
+                     SET quantidade = quantidade - %s, 
+                         data_ultima_entrada = NOW(), 
+                         usuario_ultima_alteracao = %s 
+                     WHERE id = %s"""
+            cursor.execute(sql, (quantidade_baixa, f"BAIXA: {session['usuario']} ({motivo})", item_id))
+            conn.commit()
+            flash(f"Baixa de {quantidade_baixa} unidades de {item['nome_medicamento']} realizada!", "success")
+        else:
+            flash("Quantidade de baixa superior ao estoque disponível.", "warning")
+            
+    except Exception as e:
+        print(f"Erro na baixa: {e}")
+        flash("Erro ao processar baixa.", "danger")
+    finally:
+        conn.close()
     return redirect(url_for('estoque'))
 
 @app.route('/conversor')
