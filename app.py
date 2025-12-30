@@ -299,18 +299,47 @@ def prontuario():
 @login_required
 def salvar_prontuario():
     dados = request.form
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cpf_limpo = dados['cpf'].replace('.', '').replace('-', '')
-    sql = """INSERT INTO Pacientes (nome, data_nascimento, cpf, cep, endereco, bairro, data_entrada, 
-             procedimento, status, usuario_internacao, prioridade_atencao) 
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'internado', %s, %s)"""
-    cursor.execute(sql, (dados['nome_paciente'], dados['data_nascimento'], cpf_limpo, dados['cep'], 
-                        dados['endereco'], dados['bairro'], dados['hora_entrada'].replace('T', ' '), 
-                        dados['procedimento'], session['usuario'], dados.get('prioridade_atencao', 'verde')))
-    conn.commit()
-    conn.close()
-    flash("Prontuário salvo com sucesso!", "success")
+    try: # <--- ADICIONADO: Início do bloco de teste
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cpf_limpo = dados['cpf'].replace('.', '').replace('-', '')
+        
+        sql = """INSERT INTO Pacientes (nome, data_nascimento, cpf, cep, endereco, bairro, data_entrada, 
+                  procedimento, status, usuario_internacao, prioridade_atencao) 
+                  VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'internado', %s, %s)"""
+        
+        cursor.execute(sql, (dados['nome_paciente'], dados['data_nascimento'], cpf_limpo, dados['cep'], 
+                            dados['endereco'], dados['bairro'], dados['hora_entrada'].replace('T', ' '), 
+                            dados['procedimento'], session['usuario'], dados.get('prioridade_atencao', 'verde')))
+        
+        conn.commit()
+        conn.close()
+        flash("Prontuário salvo com sucesso!", "success")
+        return redirect(url_for('pacientes'))
+
+    except Exception as e: # <--- ADICIONADO: Se der erro, ele cai aqui
+        print("ERRO NO BANCO DE DADOS:", str(e)) # Isso vai dizer o motivo real no terminal
+        flash(f"Erro ao salvar: {str(e)}", "danger")
+        return redirect(url_for('prontuario'))
+
+# --- NOVA ROTA: EXCLUIR PACIENTE (LIMPEZA DE TESTE/ERRO) ---
+@app.route('/paciente/excluir/<int:id>', methods=['POST'])
+@login_required
+def excluir_paciente(id):
+    if session.get('nivel') not in ['admin', 'tecnico']:
+        flash("Permissão negada para exclusão.", "danger")
+        return redirect(url_for('pacientes'))
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Deleta fisicamente para não constar em nenhuma estatística ou contagem
+        cursor.execute("DELETE FROM Pacientes WHERE id = %s", (id,))
+        conn.commit()
+        conn.close()
+        flash("Paciente removido permanentemente. Estatísticas limpas.", "success")
+    except Exception as e:
+        flash(f"Erro ao excluir: {str(e)}", "danger")
     return redirect(url_for('pacientes'))
 
 # ==============================================================================
@@ -402,9 +431,9 @@ def salvar_estoque():
     cursor = conn.cursor()
     try:
         sql = """INSERT INTO Estoque (nome_medicamento, quantidade, unidade, data_ultima_entrada, usuario_ultima_alteracao) 
-                 VALUES (%s, %s, %s, NOW(), %s) ON DUPLICATE KEY UPDATE 
-                 quantidade = quantidade + VALUES(quantidade), data_ultima_entrada = NOW(), 
-                 usuario_ultima_alteracao = VALUES(usuario_ultima_alteracao)"""
+                  VALUES (%s, %s, %s, NOW(), %s) ON DUPLICATE KEY UPDATE 
+                  quantidade = quantidade + VALUES(quantidade), data_ultima_entrada = NOW(), 
+                  usuario_ultima_alteracao = VALUES(usuario_ultima_alteracao)"""
         cursor.execute(sql, (dados['nome'].strip(), int(dados['quantidade']), dados['unidade'], session['usuario']))
         conn.commit()
     finally: conn.close()
@@ -421,7 +450,7 @@ def editar_estoque(item_id):
     cursor = conn.cursor()
     try:
         sql = """UPDATE Estoque SET nome_medicamento = %s, quantidade = %s, unidade = %s, 
-                 data_ultima_entrada = NOW(), usuario_ultima_alteracao = %s WHERE id = %s"""
+                  data_ultima_entrada = NOW(), usuario_ultima_alteracao = %s WHERE id = %s"""
         cursor.execute(sql, (dados['nome_medicamento'], dados['quantidade'], dados['unidade'], session['usuario'], item_id))
         conn.commit()
     finally: conn.close()

@@ -6,6 +6,21 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         .theme-icon-minimal { font-family: "Segoe UI Symbol", sans-serif; font-weight: 100; user-select: none; }
+        /* Estilo para o botão de excluir para alinhar com os outros */
+        .btn-excluir {
+            background-color: #e06c75; 
+            color: white; 
+            border: none; 
+            padding: 5px 10px; 
+            border-radius: 4px; 
+            cursor: pointer;
+            font-size: 0.85em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.2s;
+        }
+        .btn-excluir:hover { opacity: 0.8; }
     </style>
 </head>
 <body class="dark-mode">
@@ -14,7 +29,7 @@
     
     <div class="nav-dropdown">
         <h2 onclick="toggleNavMenu()" style="cursor: pointer; margin: 0; display: flex; align-items: center; gap: 10px;" title="Clique para navegar entre módulos">
-            📊 PEP <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
+            📊 <span id="current-module">PEP</span> <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
         </h2>
         
         <div id="nav-menu-list" class="nav-menu-content card">
@@ -47,7 +62,7 @@
     </nav>
 </header>
 
-    <main class="pacientes-container" style="padding: 20px;">
+    <main class="pacientes-container" style="padding: 20px; margin-top: 80px;">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="flash-messages">
@@ -87,11 +102,18 @@
                     <td><strong>{{ paciente.nome }}</strong></td>
                     <td>{{ paciente.data_entrada }}</td>
                     <td class="tabela-acoes">
-                        <div class="acoes-flex" style="display: flex; gap: 10px;">
+                        <div class="acoes-flex" style="display: flex; gap: 10px; align-items: center;">
                             <a href="{{ url_for('prova_vida', paciente_id=paciente.id) }}" class="btn-action-pequeno" style="background-color: #28a745; color: white; text-decoration: none; padding: 5px 10px; border-radius: 4px;">PV</a>
                             <a href="{{ url_for('detalhes_prontuario', paciente_id=paciente.id) }}" class="btn-action-pequeno btn-detalhes" style="text-decoration: none; padding: 5px 10px; border-radius: 4px;">Detalhes</a>
+                            
                             {% if session.get('nivel') in ['admin', 'tecnico'] %}
-                            <a href="{{ url_for('alta_form', paciente_id=paciente.id) }}" class="btn-action-pequeno" style="background-color: #dc3545; color: white; text-decoration: none; padding: 5px 10px; border-radius: 4px;">Alta</a>
+                                <a href="{{ url_for('alta_form', paciente_id=paciente.id) }}" class="btn-action-pequeno" style="background-color: #dc3545; color: white; text-decoration: none; padding: 5px 10px; border-radius: 4px;">Alta</a>
+                                
+                                <form action="{{ url_for('excluir_paciente', id=paciente.id) }}" method="POST" 
+                                      onsubmit="return confirm('Deseja excluir permanentemente este registro? Isso removerá o paciente de todos os gráficos e estatísticas.');" 
+                                      style="margin: 0;">
+                                    <button type="submit" class="btn-excluir" title="Excluir erro/teste">🗑️</button>
+                                </form>
                             {% endif %}
                         </div>
                     </td>
