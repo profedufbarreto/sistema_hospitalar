@@ -37,6 +37,21 @@
         }
         .btn-pv-edit { color: #61afef; text-decoration: none; font-size: 0.9em; font-weight: bold; }
         .btn-pv-delete { color: #e06c75; text-decoration: none; font-size: 0.9em; font-weight: bold; }
+
+        /* Garantindo que o menu dropdown funcione visualmente */
+        .nav-menu-content {
+            display: none;
+            position: absolute;
+            background: #1c1f24;
+            min-width: 250px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.5);
+            z-index: 1001;
+            top: 60px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .nav-menu-content.show {
+            display: block;
+        }
     </style>
 </head>
 <body class="dark-mode">
@@ -45,7 +60,7 @@
     
     <div class="nav-dropdown">
         <h2 onclick="toggleNavMenu()" style="cursor: pointer; margin: 0; display: flex; align-items: center; gap: 10px;" title="Clique para navegar entre módulos">
-            📊 <span id="current-module">Baixa de Estoque</span> <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
+            📊 <span id="current-module">Dados do Paciente</span> <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
         </h2>
         
         <div id="nav-menu-list" class="nav-menu-content card">
@@ -91,15 +106,22 @@
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h3>Dados do Paciente</h3>
-            <div style="display: flex; gap: 10px;">
-                <a href="{{ url_for('prova_vida', paciente_id=paciente.id) }}" class="btn-login" style="background-color: #28a745; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: bold;">
-                    Nova Prova de Vida
-                </a>
-            </div>
+                <div style="display: flex; gap: 10px;">
+                    {% if paciente.status == 'internado' %}
+                         <a href="{{ url_for('prova_vida', paciente_id=paciente.id) }}" class="btn-login" style="background-color: #28a745; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: bold;">
+                            Nova Prova de Vida
+                        </a>
+                     {% else %}
+                        <span style="color: #e06c75; font-weight: bold; background: rgba(224, 108, 117, 0.1); padding: 10px; border-radius: 6px; border: 1px solid #e06c75;">
+                             🚫 Registro em Arquivo (Alta)
+                        </span>
+                    {% endif %}
+                 </div>
         </div>
         
         <div class="card" style="padding: 20px; margin-bottom: 30px;">
             <div><strong>Nome:</strong> {{ paciente.nome }}</div>
+            <div><strong>Data de Nascimento:</strong> {{ paciente.data_nascimento.strftime('%d/%m/%Y') if paciente.data_nascimento else 'N/A' }}</div>
             <div><strong>CPF:</strong> {{ paciente.cpf }}</div>
             <div><strong>Status:</strong> <span class="badge nivel-{{ 'verde' if paciente.status == 'internado' else 'vermelho' }}">{{ paciente.status | upper }}</span></div>
         </div>
@@ -141,9 +163,26 @@
 
     </main>
 
-    
-
     <script>
+        // FUNÇÃO QUE ESTAVA FALTANDO PARA O MENU FUNCIONAR
+        function toggleNavMenu() {
+            const menu = document.getElementById('nav-menu-list');
+            menu.classList.toggle('show');
+        }
+
+        // Fechar o menu se clicar fora dele
+        window.onclick = function(event) {
+            if (!event.target.matches('#current-module') && !event.target.closest('.nav-dropdown')) {
+                const dropdowns = document.getElementsByClassName("nav-menu-content");
+                for (let i = 0; i < dropdowns.length; i++) {
+                    let openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
+
         const themeToggle = document.getElementById('theme-toggle');
         const themeIcon = document.getElementById('theme-icon');
 

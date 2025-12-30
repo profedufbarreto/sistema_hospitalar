@@ -19,18 +19,17 @@
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
         }
 
-        /* AJUSTE DE ALINHAMENTO DO HEADER */
         .main-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 30px !important; /* Respiro nas laterais */
+            padding: 10px 30px !important;
         }
 
         .nav-right-group {
             display: flex;
             align-items: center;
-            gap: 25px; /* Espaçamento entre Sol, Dashboard, Sistema e Sair */
+            gap: 25px;
         }
 
         .nav-link {
@@ -50,9 +49,16 @@
             width: 100%;
         }
         
-        /* Compensa o header fixo */
         .dashboard-content {
             margin-top: 80px; 
+        }
+
+        /* Estilo para alinhar o select no header do gráfico */
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -143,6 +149,18 @@
         <section class="charts-grid">
             <div class="chart-container-small">
                 <div class="chart-header">
+                    <h3>📈 Saída de Remédios</h3>
+                    <select class="kpi-filter-white" onchange="updateRemediosChart(this.value)">
+                        <option value="7d">7 dias</option>
+                        <option value="30d">30 dias</option>
+                        <option value="90d">90 dias</option>
+                    </select>
+                </div>
+                <div class="chart-wrapper"><canvas id="remediosChart"></canvas></div>
+            </div>
+
+            <div class="chart-container-small">
+                <div class="chart-header">
                     <h3>📈 Fluxo Mensal</h3>
                     <div class="chart-controls">
                         <button onclick="toggleLine(0)">Entradas</button>
@@ -178,11 +196,47 @@
     <script>
         const d = {{ dados|tojson }};
         let mensalChart;
+        let remediosChart; // Declarado globalmente para permitir atualização
 
         Chart.defaults.color = '#abb2bf';
         Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
         
         const professionalColors = ['#61afef', '#98c379', '#e5c07b', '#c678dd', '#e06c75', '#56b6c2', '#d19a66'];
+
+        // INICIALIZAÇÃO DO GRÁFICO DE REMÉDIOS
+        remediosChart = new Chart(document.getElementById('remediosChart'), {
+            type: 'line',
+            data: {
+                labels: d.saida_remedios.labels,
+                datasets: [{
+                    label: 'Qtd Administrada',
+                    data: d.saida_remedios.data,
+                    borderColor: '#e5c07b',
+                    backgroundColor: 'rgba(229, 192, 123, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // FUNÇÃO PARA ATUALIZAR O GRÁFICO DE REMÉDIOS
+        function updateRemediosChart(periodo) {
+            fetch(`/api/grafico/remedios/${periodo}`)
+                .then(res => res.json())
+                .then(newData => {
+                    remediosChart.data.labels = newData.labels;
+                    remediosChart.data.datasets[0].data = newData.data;
+                    remediosChart.update();
+                })
+                .catch(err => console.error("Erro ao atualizar gráfico:", err));
+        }
 
         mensalChart = new Chart(document.getElementById('mensalChart'), {
             type: 'line',
@@ -275,6 +329,27 @@
                 }
             });
         }
+
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        function refreshUI(isDark) {
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+                themeIcon.innerHTML = '☀️';
+                themeIcon.style.color = '#ffcc00';
+            } else {
+                document.body.classList.remove('dark-mode');
+                themeIcon.innerHTML = '🌙';
+                themeIcon.style.color = '#333';
+            }
+        }
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        refreshUI(savedTheme === 'dark');
+        themeToggle.addEventListener('click', () => {
+            const isNowDark = document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+            refreshUI(isNowDark);
+        });
     </script>
 </body>
 </html>

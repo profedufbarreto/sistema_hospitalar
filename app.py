@@ -79,6 +79,7 @@ def dashboard():
         'dias_data': {'labels': [], 'data': []},     
         'movimentacao_mensal': {'labels': ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"], 'entradas': [0]*12, 'altas': [0]*12},
         'movimentacao_anual': {'labels': [], 'entradas': [], 'altas': []},
+        'saida_remedios': {'labels': [], 'data': []} # Novo campo para o gráfico
     }
     
     if conn:
@@ -93,7 +94,7 @@ def dashboard():
             cursor.execute("SELECT COUNT(*) as total FROM Estoque WHERE quantidade < 100")
             dados_dashboard['baixo_estoque'] = cursor.fetchone()['total'] or 0
 
-            cursor.execute("SELECT COUNT(*) as total FROM ProvasDeVida WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)")
+            cursor.execute("SELECT COUNT(*) as total FROM provasdevida WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)")
             dados_dashboard['provas_vida_ultimas_24h'] = cursor.fetchone()['total'] or 0
 
             sql_anual = """
@@ -122,7 +123,6 @@ def dashboard():
             cursor.execute(f"SELECT MONTH(data_baixa) as mes, COUNT(*) as c FROM Pacientes WHERE status='alta' AND YEAR(data_baixa) = {current_year} GROUP BY mes")
             for r in cursor.fetchall(): dados_dashboard['movimentacao_mensal']['altas'][r['mes']-1] = r['c']
 
-            # --- ACRÉSCIMO: TENDÊNCIA DE PRIORIDADE ---
             cursor.execute(f"""
                 SELECT MONTH(data_entrada) as mes, prioridade_atencao, COUNT(*) as c 
                 FROM Pacientes WHERE YEAR(data_entrada) = {current_year} 
@@ -134,7 +134,6 @@ def dashboard():
                 if prioridade in dados_dashboard['prioridade_tendencia']:
                     dados_dashboard['prioridade_tendencia'][prioridade][mes_idx] = r['c']
 
-            # --- ACRÉSCIMO: DIAS MÉDIOS ---
             cursor.execute("""
                 SELECT usuario_internacao, AVG(DATEDIFF(IFNULL(data_baixa, NOW()), data_entrada)) as media 
                 FROM Pacientes GROUP BY usuario_internacao LIMIT 5
@@ -144,13 +143,24 @@ def dashboard():
                 dados_dashboard['dias_data']['labels'].append(nome)
                 dados_dashboard['dias_data']['data'].append(round(float(r['media']), 1))
 
+            # --- NOVO: BUSCA SAÍDA DE MEDICAMENTOS ---
+            cursor.execute("""
+                SELECT nome_medicamento, SUM(quantidade_removida) as total 
+                FROM EstoqueBaixas 
+                GROUP BY nome_medicamento 
+                ORDER BY total DESC 
+                LIMIT 8
+            """)
+            for r in cursor.fetchall():
+                dados_dashboard['saida_remedios']['labels'].append(r['nome_medicamento'])
+                dados_dashboard['saida_remedios']['data'].append(float(r['total']))
+
         except Exception as e:
             print(f"Erro no dashboard: {e}")
         finally:
             conn.close()
             
     return render_template('dashboard.html', usuario=session['usuario'], nivel=session['nivel'], dados=dados_dashboard)
-
 @app.route('/api/kpi/<tipo>/<periodo>')
 @login_required
 def api_kpi(tipo, periodo):
@@ -175,6 +185,31 @@ def api_kpi(tipo, periodo):
             valor = cursor.fetchone()['total'] or 0
     finally: conn.close()
     return jsonify({'valor': valor})
+
+@app.route('/api/grafico/remedios/<periodo>')
+@login_required
+def api_remedios(periodo):
+    dias = 7
+    if periodo == '30d': dias = 30
+    elif periodo == '90d': dias = 90
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Filtra as saídas de medicamentos pelo período selecionado
+    cursor.execute("""
+        SELECT nome_medicamento, SUM(quantidade_removida) as total 
+        FROM EstoqueBaixas 
+        WHERE data_hora >= DATE_SUB(NOW(), INTERVAL %s DAY)
+        GROUP BY nome_medicamento 
+        ORDER BY total DESC LIMIT 6
+    """, (dias,))
+    dados_grafico = cursor.fetchall()
+    conn.close()
+    
+    return jsonify({
+        'labels': [r['nome_medicamento'] for r in dados_grafico],
+        'data': [float(r['total']) for r in dados_grafico]
+    })
 
 # ==============================================================================
 # 👥 GESTÃO DE USUÁRIOS (MANTIDO)
@@ -387,52 +422,77 @@ def prova_vida(paciente_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # --- NOVO: BLOQUEIO DE SEGURANÇA ---
+    # Busca o status do paciente antes de qualquer ação
+    cursor.execute("SELECT * FROM Pacientes WHERE id = %s", (paciente_id,))
+    paciente = cursor.fetchone()
+
+    if not paciente:
+        conn.close()
+        flash("Paciente não encontrado.", "danger")
+        return redirect(url_for('pacientes'))
+
+    # Se o paciente já deu alta, impede o acesso à página ou ao salvamento
+    if paciente['status'] != 'internado':
+        conn.close()
+        flash("Não é permitido registrar Prova de Vida para pacientes que já receberam alta.", "warning")
+        return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id))
+    # ----------------------------------
+
     if request.method == 'POST':
         dados = request.form
         try:
-            # SQL usando os nomes exatos da sua imagem do MySQL
+            # 1. Salva os sinais vitais
             sql_pv = """INSERT INTO provasdevida 
                         (paciente_id, data_hora, pressao_arterial, glicose, saturacao, 
                          batimentos_cardiacos, quem_efetuou, observacoes, evolucao, temperatura) 
                         VALUES (%s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s)"""
             
-            # Mapeando os campos do seu HTML para as colunas do banco
             valores = (
                 paciente_id, 
-                dados.get('pa'),           # vai para pressao_arterial
+                dados.get('pa'),
                 dados.get('glicose'), 
-                dados.get('sat'),          # vai para saturacao
-                dados.get('bpm'),          # vai para batimentos_cardiacos
-                session.get('usuario'),    # vai para quem_efetuou
-                "",                        # observacoes (vazio por enquanto)
-                dados.get('evolucao'),     # vai para evolucao
+                dados.get('sat'),
+                dados.get('bpm'),
+                session.get('usuario'),
+                "", 
+                dados.get('evolucao'),
                 dados.get('temperatura')
             )
-            
             cursor.execute(sql_pv, valores)
 
-            # Lógica de baixa de medicamento (Estoque)
+            # 2. LOGICA DE ESTOQUE (Alimenta o Gráfico e Histórico)
             nome_remedio = dados.get('medicamento_adm')
             qtd_adm = dados.get('quantidade_adm')
+            
             if nome_remedio and qtd_adm and float(qtd_adm) > 0:
-                cursor.execute("UPDATE Estoque SET quantidade = quantidade - %s WHERE nome_medicamento = %s", (float(qtd_adm), nome_remedio))
-                # Aqui você pode adicionar o INSERT na tabela EstoqueBaixas se desejar
+                qtd_f = float(qtd_adm)
+                
+                # Busca a unidade no estoque para o histórico
+                cursor.execute("SELECT unidade FROM Estoque WHERE nome_medicamento = %s", (nome_remedio,))
+                item_estoque = cursor.fetchone()
+                
+                if item_estoque:
+                    # Subtrai do estoque principal
+                    cursor.execute("UPDATE Estoque SET quantidade = quantidade - %s WHERE nome_medicamento = %s", (qtd_f, nome_remedio))
+                    
+                    # REGISTRA NA TABELA DE BAIXAS (Histórico Geral e Gráfico)
+                    sql_hist = """INSERT INTO EstoqueBaixas (nome_medicamento, quantidade_removida, unidade, motivo, usuario_baixa) 
+                                  VALUES (%s, %s, %s, %s, %s)"""
+                    cursor.execute(sql_hist, (nome_remedio, qtd_f, item_estoque['unidade'], f"Adm. Paciente ID {paciente_id}", session['usuario']))
 
             conn.commit()
-            flash("Prova de vida registrada com sucesso!", "success")
+            flash("Prova de vida registrada e estoque atualizado!", "success")
             return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id))
 
         except Exception as e:
             if conn: conn.rollback()
-            print(f"Erro ao salvar: {e}")
-            flash(f"Erro ao salvar no banco de dados: {e}", "danger")
+            flash(f"Erro ao salvar: {e}", "danger")
             return redirect(url_for('prova_vida', paciente_id=paciente_id))
         finally:
             conn.close()
 
-    # GET: Carrega o formulário
-    cursor.execute("SELECT * FROM Pacientes WHERE id = %s", (paciente_id,))
-    paciente = cursor.fetchone()
+    # GET: Carrega o formulário (Paciente já foi buscado no início da função)
     cursor.execute("SELECT nome_medicamento, quantidade FROM Estoque WHERE quantidade > 0")
     medicamentos = cursor.fetchall()
     conn.close()
