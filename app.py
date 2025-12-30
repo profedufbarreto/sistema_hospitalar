@@ -284,7 +284,7 @@ def detalhes_prontuario(paciente_id):
 
     # Query ajustada para os nomes reais das suas colunas
     cursor.execute("""
-        SELECT data_hora, pressao_arterial, saturacao, batimentos_cardiacos, 
+        SELECT id, data_hora, pressao_arterial, saturacao, batimentos_cardiacos, 
                glicose, temperatura, evolucao, quem_efetuou 
         FROM provasdevida 
         WHERE paciente_id = %s 
@@ -375,24 +375,7 @@ def salvar_prontuario():
         if conn: conn.close()
 
 # --- NOVA ROTA: EXCLUIR PACIENTE (LIMPEZA DE TESTE/ERRO) ---
-@app.route('/paciente/excluir/<int:id>', methods=['POST'])
-@login_required
-def excluir_paciente(id):
-    if session.get('nivel') not in ['admin', 'tecnico']:
-        flash("Permissão negada para exclusão.", "danger")
-        return redirect(url_for('pacientes'))
-    
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        # Deleta fisicamente para não constar em nenhuma estatística ou contagem
-        cursor.execute("DELETE FROM Pacientes WHERE id = %s", (id,))
-        conn.commit()
-        conn.close()
-        flash("Paciente removido permanentemente. Estatísticas limpas.", "success")
-    except Exception as e:
-        flash(f"Erro ao excluir: {str(e)}", "danger")
-    return redirect(url_for('pacientes'))
+
 
 # ==============================================================================
 # ❤️ PROVA DE VIDA, ALTA E ARQUIVO (MANTIDO)
@@ -455,60 +438,71 @@ def prova_vida(paciente_id):
     conn.close()
     return render_template('prova_vida_form.html', paciente=paciente, medicamentos_estoque=medicamentos)
 
-@app.route('/prova_vida/salvar/<int:paciente_id>', methods=['POST'])
+@app.route('/prova_vida/editar/<int:pv_id>', methods=['GET', 'POST'])
 @login_required
-def salvar_prova_vida(paciente_id):
-    dados = request.form
+def editar_prova_vida(pv_id):
+    if session.get('nivel') not in ['admin', 'tecnico']:
+        flash("Acesso negado.", "danger")
+        return redirect(url_for('dashboard'))
+
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    if request.method == 'POST':
+        dados = request.form
+        try:
+            sql = """UPDATE provasdevida SET 
+                     pressao_arterial=%s, glicose=%s, saturacao=%s, 
+                     batimentos_cardiacos=%s, temperatura=%s, evolucao=%s 
+                     WHERE id=%s"""
+            cursor.execute(sql, (
+                dados.get('pa'), dados.get('glicose'), dados.get('sat'),
+                dados.get('bpm'), dados.get('temperatura'), dados.get('evolucao'), pv_id
+            ))
+            conn.commit()
+            flash("Registro atualizado com sucesso!", "success")
+            return redirect(url_for('provas_vida_geral'))
+        except Exception as e:
+            conn.rollback()
+            flash(f"Erro ao editar: {e}", "danger")
+        finally:
+            conn.close()
+
+    # GET: Busca os dados atuais para preencher o formulário
+    cursor.execute("SELECT * FROM provasdevida WHERE id = %s", (pv_id,))
+    pv = cursor.fetchone()
+    conn.close()
+    return render_template('editar_prova_vida.html', pv=pv)
+
+@app.route('/prova_vida/excluir/<int:pv_id>')
+@login_required
+def excluir_prova_vida(pv_id):
+    if session.get('nivel') not in ['admin', 'tecnico']:
+        flash("Permissão negada.", "danger")
+        return redirect(url_for('pacientes'))
     
+    conn = get_db_connection()
+    cursor = conn.cursor()
     try:
-        # 1. SALVAR OS SINAIS VITAIS
-        sql_prova = """INSERT INTO ProvasVida (paciente_id, pa, saturacao, frequencia_cardiaca, 
-                       temperatura, observacoes, usuario_registro, data_registro) 
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())"""
+        # Pegamos o paciente_id antes de deletar para saber para onde retornar
+        cursor.execute("SELECT paciente_id FROM provasdevida WHERE id = %s", (pv_id,))
+        registro = cursor.fetchone()
         
-        cursor.execute(sql_prova, (paciente_id, dados.get('pa'), dados.get('saturacao'), 
-                                  dados.get('fc'), dados.get('temperatura'), 
-                                  dados.get('observacoes'), session['usuario']))
-
-        # 2. BAIXA DE MEDICAMENTO NA PROVA DE VIDA
-        nome_remedio = dados.get('medicamento_adm')
-        qtd_adm = dados.get('quantidade_adm')
-
-        if nome_remedio and qtd_adm and float(qtd_adm) > 0:
-            qtd_num = float(qtd_adm)
-            
-            # Busca o remédio no estoque
-            cursor.execute("SELECT id, quantidade, unidade FROM Estoque WHERE nome_medicamento = %s", (nome_remedio,))
-            item = cursor.fetchone()
-
-            if item:
-                if item['quantidade'] >= qtd_num:
-                    # Atualiza estoque
-                    nova_qtd = item['quantidade'] - qtd_num
-                    cursor.execute("UPDATE Estoque SET quantidade = %s WHERE id = %s", (nova_qtd, item['id']))
-                    
-                    # Registra no histórico de baixas
-                    cursor.execute("SELECT nome FROM Pacientes WHERE id = %s", (paciente_id,))
-                    paciente = cursor.fetchone()
-                    
-                    sql_baixa = """INSERT INTO EstoqueBaixas (nome_medicamento, quantidade_removida, unidade, motivo, usuario_baixa) 
-                                   VALUES (%s, %s, %s, %s, %s)"""
-                    cursor.execute(sql_baixa, (nome_remedio, qtd_num, item['unidade'], 
-                                              f"Adm. em Prova de Vida: {paciente['nome']}", session['usuario']))
-                else:
-                    flash(f"Aviso: Estoque insuficiente de {nome_remedio} para administração.", "warning")
-
-        conn.commit()
-        flash("Prova de vida registrada e estoque atualizado!", "success")
+        if registro:
+            p_id = registro['paciente_id']
+            cursor.execute("DELETE FROM provasdevida WHERE id = %s", (pv_id,))
+            conn.commit()
+            flash("Registro excluído com sucesso!", "success")
+            return redirect(url_for('detalhes_prontuario', paciente_id=p_id))
+        
+        flash("Registro não encontrado.", "warning")
     except Exception as e:
         conn.rollback()
-        flash(f"Erro ao registrar: {e}", "danger")
+        flash(f"Erro ao excluir: {e}", "danger")
     finally:
         conn.close()
     
-    return redirect(url_for('detalhes_paciente', id=paciente_id))
+    return redirect(url_for('pacientes'))
 
 @app.route('/paciente/alta_form/<int:paciente_id>')
 @login_required
@@ -532,6 +526,29 @@ def dar_alta(paciente_id):
     conn.close()
     flash("Alta registrada!", "success")
     return redirect(url_for('arquivo'))
+
+@app.route('/paciente/excluir/<int:id>', methods=['POST'])
+@login_required
+def excluir_paciente(id):
+    if session.get('nivel') not in ['admin', 'tecnico']:
+        flash("Permissão negada.", "danger")
+        return redirect(url_for('pacientes'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Deleta o paciente (o banco cuidará das provas de vida se houver ON DELETE CASCADE, 
+        # senão, você deve deletar as provas de vida dele antes)
+        cursor.execute("DELETE FROM Pacientes WHERE id = %s", (id,))
+        conn.commit()
+        flash("Paciente excluído com sucesso!", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Erro ao excluir paciente: {e}", "danger")
+    finally:
+        conn.close()
+    
+    return redirect(url_for('pacientes'))
 
 @app.route('/arquivo')
 @login_required

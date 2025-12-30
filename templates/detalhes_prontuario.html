@@ -8,7 +8,6 @@
         .theme-icon-minimal { font-family: "Segoe UI Symbol", sans-serif; font-weight: 100; user-select: none; }
         .nav-link { text-decoration: none; color: inherit; transition: opacity 0.2s; }
         
-        /* Estilo para destacar a Evolução */
         .pv-evolucao {
             background: rgba(97, 175, 239, 0.05);
             border-left: 4px solid #61afef;
@@ -20,7 +19,6 @@
         }
         .dark-mode .pv-evolucao { background: rgba(255, 255, 255, 0.05); }
 
-        /* Badge para temperatura */
         .temp-badge {
             padding: 2px 8px;
             border-radius: 4px;
@@ -28,15 +26,26 @@
             background: rgba(224, 108, 117, 0.2);
             color: #e06c75;
         }
+
+        .pv-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 10px;
+        }
+        .btn-pv-edit { color: #61afef; text-decoration: none; font-size: 0.9em; font-weight: bold; }
+        .btn-pv-delete { color: #e06c75; text-decoration: none; font-size: 0.9em; font-weight: bold; }
     </style>
 </head>
 <body class="dark-mode">
     
-<header class="main-header" style="background: #181a1f; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; position: fixed; top: 0; width: 100%; z-index: 1000;">
+    <header class="main-header" style="background: #181a1f; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; position: fixed; top: 0; width: 100%; z-index: 1000;">
     
     <div class="nav-dropdown">
         <h2 onclick="toggleNavMenu()" style="cursor: pointer; margin: 0; display: flex; align-items: center; gap: 10px;" title="Clique para navegar entre módulos">
-            📊 <span id="current-module">PEP</span> <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
+            📊 <span id="current-module">Baixa de Estoque</span> <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
         </h2>
         
         <div id="nav-menu-list" class="nav-menu-content card">
@@ -47,7 +56,7 @@
             
             <div class="menu-sep">GESTÃO E CLÍNICA</div>
             <a href="{{ url_for('estoque') }}">📦 Estoque de Medicamentos</a>
-            <a href="{{ url_for('estoque_historico_baixas') }}">📉 Histórico de Baixas</a>
+            <a href="{{ url_for('estoque_historico_baixas') }}">📉 Histórico de Baixas de Medicamentos</a>
             <a href="{{ url_for('provas_vida_geral') }}">❤️ Histórico de Provas de Vida</a>
             <a href="{{ url_for('arquivo') }}">📁 Arquivo (Altas)</a>
             <a href="{{ url_for('conversor') }}">⚖️ Conversor de Medidas</a>
@@ -74,58 +83,35 @@
         
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="flash-messages">
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
             {% endif %}
         {% endwith %}
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3 class="section-header" style="margin: 0; flex-grow: 1;">Dados do Paciente e Internação</h3>
-            
+            <h3>Dados do Paciente</h3>
             <div style="display: flex; gap: 10px;">
-                <a href="{{ url_for('prova_vida', paciente_id=paciente.id) }}" 
-                   class="btn-login" style="background-color: #28a745; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: bold;">
+                <a href="{{ url_for('prova_vida', paciente_id=paciente.id) }}" class="btn-login" style="background-color: #28a745; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: bold;">
                     Nova Prova de Vida
                 </a>
-
-                {% if paciente.status == 'internado' and session.get('nivel') in ['admin', 'tecnico'] %}
-                <a href="{{ url_for('alta_form', paciente_id=paciente.id) }}" 
-                   class="btn-logout" 
-                   style="background-color: #dc3545; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: bold;">
-                    Registrar Alta Médica
-                </a>
-                {% endif %}
             </div>
         </div>
         
         <div class="card" style="padding: 20px; margin-bottom: 30px;">
-            <div class="data-item"><strong>Nome:</strong> {{ paciente.nome }}</div>
-            <div class="data-item">
-                <strong>CPF:</strong> 
-                <span class="value">
-                    {{ paciente.cpf }}
-                </span>
-            </div>
-            <div class="data-item"><strong>Nascimento:</strong> {{ paciente.data_nascimento.strftime('%d/%m/%Y') if paciente.data_nascimento else 'N/A' }}</div>
-            <div class="data-item"><strong>Entrada:</strong> {{ paciente.data_entrada.strftime('%d/%m/%Y %H:%M') if paciente.data_entrada else 'N/A' }}</div>
-            <div class="data-item"><strong>Status:</strong> <span class="badge nivel-{{ 'verde' if paciente.status == 'internado' else 'vermelho' }}">{{ paciente.status | upper }}</span></div>
-            <div class="data-item"><strong>Endereço:</strong> {{ paciente.endereco }}, {{ paciente.bairro }} (CEP: {{ paciente.cep }})</div>
-            <div class="data-item" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.1);">
-                <strong>Procedimento/Motivo:</strong> {{ paciente.procedimento }}
-            </div>
+            <div><strong>Nome:</strong> {{ paciente.nome }}</div>
+            <div><strong>CPF:</strong> {{ paciente.cpf }}</div>
+            <div><strong>Status:</strong> <span class="badge nivel-{{ 'verde' if paciente.status == 'internado' else 'vermelho' }}">{{ paciente.status | upper }}</span></div>
         </div>
 
-        <h3 class="section-header" style="border-bottom-color: #28a745;">Histórico Clínico e Provas de Vida ({{ provas_vida | length }} Registros)</h3>
+        <h3 class="section-header">Histórico Clínico ({{ provas_vida | length }} Registros)</h3>
         
         {% if provas_vida %}
         <div class="prova-vida-list">
             {% for pv in provas_vida %}
             <div class="prova-vida-item card" style="margin-bottom: 15px; padding: 15px; border-left: 5px solid #28a745;">
                 <div class="pv-data" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
-                    <span>📅 <strong>Data/Hora:</strong> {{ pv.data_hora.strftime('%d/%m/%Y %H:%M') if pv.data_hora else 'N/A' }}</span>
+                    <span>📅 <strong>Data:</strong> {{ pv.data_hora.strftime('%d/%m/%Y %H:%M') if pv.data_hora else 'N/A' }}</span>
                     <span>👨‍⚕️ <strong>Profissional:</strong> {{ pv.quem_efetuou }}</span>
                     <span>🩸 <strong>PA:</strong> {{ pv.pressao_arterial }}</span>
                     <span>🌡️ <strong>Temp:</strong> <span class="temp-badge">{{ pv.temperatura }}°C</span></span>
@@ -134,21 +120,28 @@
                     <span>💨 <strong>SpO2:</strong> {{ pv.saturacao }}%</span>
                 </div>
 
-                {% if pv.evolucao or pv.observacoes %}
+                {% if pv.evolucao %}
                 <div class="pv-evolucao">
-                    <strong>📝 Evolução / Conduta / Medicamentos:</strong><br>
-                    {% if pv.evolucao %}{{ pv.evolucao }}{% endif %}
-                    {% if pv.observacoes %}<br><small style="opacity: 0.8;">Obs: {{ pv.observacoes }}</small>{% endif %}
+                    <strong>📝 Evolução:</strong> {{ pv.evolucao }}
+                </div>
+                {% endif %}
+
+                {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                <div class="pv-actions">
+                    <a href="{{ url_for('editar_prova_vida', pv_id=pv.id) }}" class="btn-pv-edit">✏️ Editar Registro</a>
+                    <a href="{{ url_for('excluir_prova_vida', pv_id=pv.id) }}" class="btn-pv-delete" onclick="return confirm('Excluir este registro clínico permanentemente?')">🗑️ Excluir</a>
                 </div>
                 {% endif %}
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p class="card" style="padding: 20px; text-align: center; opacity: 0.6;">Nenhuma prova de vida registrada para este paciente.</p>
+        <p class="card" style="padding: 20px; text-align: center; opacity: 0.6;">Nenhum registro encontrado.</p>
         {% endif %}
 
     </main>
+
+    
 
     <script>
         const themeToggle = document.getElementById('theme-toggle');
@@ -175,6 +168,5 @@
             refreshUI(isNowDark);
         });
     </script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

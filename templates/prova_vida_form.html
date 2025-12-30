@@ -21,11 +21,11 @@
 </head>
 <body class="dark-mode">
     
-<header class="main-header" style="background: #181a1f; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; position: fixed; top: 0; width: 100%; z-index: 1000;">
+    <header class="main-header" style="background: #181a1f; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; position: fixed; top: 0; width: 100%; z-index: 1000;">
     
     <div class="nav-dropdown">
         <h2 onclick="toggleNavMenu()" style="cursor: pointer; margin: 0; display: flex; align-items: center; gap: 10px;" title="Clique para navegar entre módulos">
-            📊 <span id="current-module">PEP</span> <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
+            📊 <span id="current-module">Baixa de Estoque</span> <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
         </h2>
         
         <div id="nav-menu-list" class="nav-menu-content card">
@@ -36,7 +36,7 @@
             
             <div class="menu-sep">GESTÃO E CLÍNICA</div>
             <a href="{{ url_for('estoque') }}">📦 Estoque de Medicamentos</a>
-            <a href="{{ url_for('estoque_historico_baixas') }}">📉 Histórico de Baixas</a>
+            <a href="{{ url_for('estoque_historico_baixas') }}">📉 Histórico de Baixas de Medicamentos</a>
             <a href="{{ url_for('provas_vida_geral') }}">❤️ Histórico de Provas de Vida</a>
             <a href="{{ url_for('arquivo') }}">📁 Arquivo (Altas)</a>
             <a href="{{ url_for('conversor') }}">⚖️ Conversor de Medidas</a>

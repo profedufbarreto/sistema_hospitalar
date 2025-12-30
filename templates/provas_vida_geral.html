@@ -4,14 +4,19 @@
     <meta charset="UTF-8">
     <title>Histórico Geral de Provas de Vida | PEP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .btn-edit { color: #61afef; text-decoration: none; font-weight: bold; margin-right: 10px; }
+        .btn-delete { color: #e06c75; text-decoration: none; font-weight: bold; cursor: pointer; }
+        .btn-edit:hover, .btn-delete:hover { opacity: 0.7; }
+    </style>
 </head>
-<body>
+<body class="dark-mode">
 
     <header class="main-header" style="background: #181a1f; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; position: fixed; top: 0; width: 100%; z-index: 1000;">
     
     <div class="nav-dropdown">
         <h2 onclick="toggleNavMenu()" style="cursor: pointer; margin: 0; display: flex; align-items: center; gap: 10px;" title="Clique para navegar entre módulos">
-            📊 <span id="current-module">PEP</span> <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
+            📊 <span id="current-module">Baixa de Estoque</span> <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
         </h2>
         
         <div id="nav-menu-list" class="nav-menu-content card">
@@ -22,7 +27,7 @@
             
             <div class="menu-sep">GESTÃO E CLÍNICA</div>
             <a href="{{ url_for('estoque') }}">📦 Estoque de Medicamentos</a>
-            <a href="{{ url_for('estoque_historico_baixas') }}">📉 Histórico de Baixas</a>
+            <a href="{{ url_for('estoque_historico_baixas') }}">📉 Histórico de Baixas de Medicamentos</a>
             <a href="{{ url_for('provas_vida_geral') }}">❤️ Histórico de Provas de Vida</a>
             <a href="{{ url_for('arquivo') }}">📁 Arquivo (Altas)</a>
             <a href="{{ url_for('conversor') }}">⚖️ Conversor de Medidas</a>
@@ -45,12 +50,12 @@
     </nav>
 </header>
 
-    <main class="pacientes-container">
+    <main class="pacientes-container" style="margin-top: 100px;">
         <div class="estoque-header card" style="margin-bottom: 20px; padding: 20px;">
             <h3>📊 Registros de Provas de Vida (Todos os Pacientes)</h3>
             <div class="search-bar" style="width: 100%; margin-top: 15px;">
                 <input type="text" id="filtroPV" placeholder="Pesquisar por paciente, data ou profissional..." 
-                       onkeyup="filtrarPV()" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+                        onkeyup="filtrarPV()" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
             </div>
         </div>
 
@@ -60,25 +65,43 @@
                     <th>Data/Hora</th>
                     <th>Paciente</th>
                     <th>P.A.</th>
+                    <th>Temp.</th>
                     <th>Glicose</th>
                     <th>Sat.</th>
                     <th>BPM</th>
                     <th>Executado por</th>
+                    {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                    <th>Ações</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
                 {% for registro in historico %}
                 <tr>
-                    <td><strong>{{ registro.data_hora.strftime('%d/%m/%Y %H:%M') }}</strong></td>
+                    <td><strong>{{ registro.data_hora.strftime('%d/%m/%Y %H:%M') if registro.data_hora else 'N/A' }}</strong></td>
                     <td>{{ registro.nome_paciente }}</td>
                     <td>{{ registro.pressao_arterial }}</td>
+                    <td><span style="color: #e06c75; font-weight: bold;">{{ registro.temperatura }}°C</span></td>
                     <td>{{ registro.glicose }} mg/dL</td>
                     <td>{{ registro.saturacao }}%</td>
                     <td>{{ registro.batimentos_cardiacos }} bpm</td>
                     <td><span class="badge nivel-estagiario">{{ registro.quem_efetuou }}</span></td>
+                    
+                    {% if session.get('nivel') in ['admin', 'tecnico'] %}
+                    <td>
+                        <div style="display: flex; gap: 10px;">
+                            <a href="{{ url_for('editar_prova_vida', pv_id=registro.id) }}" class="btn-edit" title="Editar Registro">✏️</a>
+                            
+                            <a href="{{ url_for('excluir_prova_vida', pv_id=registro.id) }}" 
+                               class="btn-delete" 
+                               title="Excluir Registro"
+                               onclick="return confirm('ATENÇÃO: Deseja realmente excluir permanentemente este registro clínico?')">🗑️</a>
+                        </div>
+                    </td>
+                    {% endif %}
                 </tr>
                 {% else %}
-                <tr><td colspan="7" style="text-align: center;">Nenhum registro encontrado.</td></tr>
+                <tr><td colspan="9" style="text-align: center;">Nenhum registro encontrado.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -98,15 +121,30 @@
             }
         }
 
-        // Lógica do Tema
-        function initTheme() {
-            if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
+        // Lógica do Tema (Melhorada)
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+
+        function refreshUI(isDark) {
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+                themeIcon.innerHTML = '&#9728;';
+                themeIcon.style.color = '#ffcc00';
+            } else {
+                document.body.classList.remove('dark-mode');
+                themeIcon.innerHTML = '&#9789;';
+                themeIcon.style.color = '#333';
+            }
         }
-        document.getElementById('theme-toggle').addEventListener('change', function() {
-            document.body.classList.toggle('dark-mode');
-            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        refreshUI(savedTheme === 'dark');
+
+        themeToggle.addEventListener('click', () => {
+            const isNowDark = document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+            refreshUI(isNowDark);
         });
-        document.addEventListener('DOMContentLoaded', initTheme);
     </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
