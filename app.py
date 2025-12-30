@@ -299,28 +299,70 @@ def prontuario():
 @login_required
 def salvar_prontuario():
     dados = request.form
-    try: # <--- ADICIONADO: Início do bloco de teste
-        conn = get_db_connection()
-        cursor = conn.cursor()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 1. SALVAR O PACIENTE (Seu código original mantido)
         cpf_limpo = dados['cpf'].replace('.', '').replace('-', '')
+        sql_paciente = """INSERT INTO Pacientes (nome, data_nascimento, cpf, cep, endereco, bairro, data_entrada, 
+                          procedimento, status, usuario_internacao, prioridade_atencao) 
+                          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'internado', %s, %s)"""
         
-        sql = """INSERT INTO Pacientes (nome, data_nascimento, cpf, cep, endereco, bairro, data_entrada, 
-                  procedimento, status, usuario_internacao, prioridade_atencao) 
-                  VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'internado', %s, %s)"""
-        
-        cursor.execute(sql, (dados['nome_paciente'], dados['data_nascimento'], cpf_limpo, dados['cep'], 
-                            dados['endereco'], dados['bairro'], dados['hora_entrada'].replace('T', ' '), 
-                            dados['procedimento'], session['usuario'], dados.get('prioridade_atencao', 'verde')))
-        
+        cursor.execute(sql_paciente, (dados['nome_paciente'], dados['data_nascimento'], cpf_limpo, dados['cep'], 
+                                     dados['endereco'], dados['bairro'], dados['hora_entrada'].replace('T', ' '), 
+                                     dados['procedimento'], session['usuario'], dados.get('prioridade_atencao', 'verde')))
+
+        # 2. LOGICA DE BAIXA NO ESTOQUE PARA MÚLTIPLOS MEDICAMENTOS
+        # Pegamos as listas do formulário (campos com [])
+        medicamentos = dados.getlist('medicamento_entrada[]')
+        doses = dados.getlist('dose[]')
+        outros_nomes = dados.getlist('outro_medicamento_nome[]')
+
+        for i in range(len(medicamentos)):
+            nome_remedio = medicamentos[i]
+            
+            # Se for "outro", pegamos o nome digitado manualmente
+            if nome_remedio == 'outro':
+                nome_remedio = outros_nomes[i].strip() if i < len(outros_nomes) else ""
+            
+            qtd_prescrita = doses[i] if i < len(doses) else "0"
+
+            if nome_remedio and qtd_prescrita and float(qtd_prescrita) > 0:
+                qtd_num = float(qtd_prescrita)
+
+                # Busca o remédio no estoque (Busca exata pelo nome)
+                cursor.execute("SELECT id, quantidade, unidade FROM Estoque WHERE nome_medicamento = %s", (nome_remedio,))
+                item = cursor.fetchone()
+
+                if item:
+                    if item['quantidade'] >= qtd_num:
+                        # Subtrai do estoque principal
+                        nova_qtd = item['quantidade'] - qtd_num
+                        cursor.execute("UPDATE Estoque SET quantidade = %s WHERE id = %s", (nova_qtd, item['id']))
+
+                        # Registra no histórico de baixas para o relatório ficar perfeito
+                        sql_baixa = """INSERT INTO EstoqueBaixas (nome_medicamento, quantidade_removida, unidade, motivo, usuario_baixa) 
+                                       VALUES (%s, %s, %s, %s, %s)"""
+                        cursor.execute(sql_baixa, (nome_remedio, qtd_num, item['unidade'], 
+                                                  f"Prescrição Inicial: {dados['nome_paciente']}", session['usuario']))
+                    else:
+                        flash(f"Atenção: Estoque insuficiente de {nome_remedio} (Saldo: {item['quantidade']}).", "warning")
+                else:
+                    # Se não encontrou no estoque (muito comum se o nome for digitado errado no 'outro')
+                    print(f"Medicamento {nome_remedio} não encontrado para baixa.")
+
         conn.commit()
-        conn.close()
-        flash("Prontuário salvo com sucesso!", "success")
+        flash("Prontuário e medicações processadas com sucesso!", "success")
         return redirect(url_for('pacientes'))
 
-    except Exception as e: # <--- ADICIONADO: Se der erro, ele cai aqui
-        print("ERRO NO BANCO DE DADOS:", str(e)) # Isso vai dizer o motivo real no terminal
-        flash(f"Erro ao salvar: {str(e)}", "danger")
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"Erro ao salvar prontuário: {e}")
+        flash(f"Erro ao salvar: {e}", "danger")
         return redirect(url_for('prontuario'))
+    finally:
+        if conn: conn.close()
 
 # --- NOVA ROTA: EXCLUIR PACIENTE (LIMPEZA DE TESTE/ERRO) ---
 @app.route('/paciente/excluir/<int:id>', methods=['POST'])
@@ -407,7 +449,7 @@ def arquivo():
     return render_template('arquivo.html', pacientes=pacientes_alta)
 
 # ==============================================================================
-# 📦 ESTOQUE (MANTIDO E PROTEGIDO)
+# 📦 ESTOQUE (VERSÃO CORRIGIDA E SEM DUPLICIDADE)
 # ==============================================================================
 
 @app.route('/estoque')
@@ -428,19 +470,16 @@ def salvar_estoque():
         return redirect(url_for('estoque'))
     
     dados = request.form
-    # AJUSTE REALISTA: Cria um nome técnico, ex: "Dipirona 500mg"
     nome_com_dosagem = f"{dados['nome'].strip()} {dados.get('dosagem', '').strip()}".strip()
     
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Sua lógica original está 100% preservada aqui
         sql = """INSERT INTO Estoque (nome_medicamento, quantidade, unidade, data_ultima_entrada, usuario_ultima_alteracao) 
                   VALUES (%s, %s, %s, NOW(), %s) ON DUPLICATE KEY UPDATE 
                   quantidade = quantidade + VALUES(quantidade), data_ultima_entrada = NOW(), 
                   usuario_ultima_alteracao = VALUES(usuario_ultima_alteracao)"""
         
-        # O campo 'quantidade' vem do JS do formulário (multiplicação de caixas x itens)
         cursor.execute(sql, (nome_com_dosagem, int(dados['quantidade']), dados['unidade'], session['usuario']))
         conn.commit()
         flash(f"Estoque de {nome_com_dosagem} atualizado!", "success")
@@ -468,42 +507,70 @@ def editar_estoque(item_id):
     finally: conn.close()
     return redirect(url_for('estoque'))
 
+# --- ROTA DE BAIXA ÚNICA (REGISTRA NO HISTÓRICO E ATUALIZA ESTOQUE) ---
+
 @app.route('/estoque/baixa_perda/<int:item_id>', methods=['POST'])
 @login_required
 def baixa_perda_estoque(item_id):
-    # Segurança: Apenas Admin e Técnico
     if session.get('nivel') not in ['admin', 'tecnico']:
         flash("Acesso negado.", "danger")
         return redirect(url_for('estoque'))
     
-    quantidade_baixa = int(request.form.get('quantidade_baixa', 0))
-    motivo = request.form.get('motivo', 'Vencimento/Avaria')
+    # Pegamos os dados do formulário
+    quantidade_baixa = request.form.get('quantidade_baixa')
+    motivo = request.form.get('motivo', 'Descarte')
+
+    if not quantidade_baixa:
+        flash("Quantidade inválida.", "warning")
+        return redirect(url_for('estoque'))
+
+    quantidade_baixa = int(quantidade_baixa)
     
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Primeiro, verificamos se há estoque suficiente para dar baixa
-        cursor.execute("SELECT quantidade, nome_medicamento FROM Estoque WHERE id = %s", (item_id,))
+        # Busca os dados atuais
+        cursor.execute("SELECT nome_medicamento, unidade, quantidade FROM Estoque WHERE id = %s", (item_id,))
         item = cursor.fetchone()
         
         if item and item['quantidade'] >= quantidade_baixa:
-            sql = """UPDATE Estoque 
-                     SET quantidade = quantidade - %s, 
-                         data_ultima_entrada = NOW(), 
-                         usuario_ultima_alteracao = %s 
-                     WHERE id = %s"""
-            cursor.execute(sql, (quantidade_baixa, f"BAIXA: {session['usuario']} ({motivo})", item_id))
+            # 1. TENTA INSERIR NO HISTÓRICO
+            cursor.execute("""
+                INSERT INTO EstoqueBaixas (nome_medicamento, quantidade_removida, unidade, motivo, usuario_baixa)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (item['nome_medicamento'], quantidade_baixa, item['unidade'], motivo, session['usuario']))
+            
+            # 2. ATUALIZA OU DELETA O ITEM
+            nova_qtd = item['quantidade'] - quantidade_baixa
+            if nova_qtd <= 0:
+                cursor.execute("DELETE FROM Estoque WHERE id = %s", (item_id,))
+            else:
+                cursor.execute("UPDATE Estoque SET quantidade = %s WHERE id = %s", (nova_qtd, item_id))
+            
             conn.commit()
-            flash(f"Baixa de {quantidade_baixa} unidades de {item['nome_medicamento']} realizada!", "success")
+            flash(f"Baixa de {item['nome_medicamento']} realizada com sucesso!", "success")
         else:
-            flash("Quantidade de baixa superior ao estoque disponível.", "warning")
+            flash("Quantidade insuficiente no estoque.", "warning")
             
     except Exception as e:
-        print(f"Erro na baixa: {e}")
-        flash("Erro ao processar baixa.", "danger")
+        conn.rollback() # Cancela se der erro
+        print(f"ERRO CRÍTICO NA BAIXA: {e}") # Olhe o seu terminal/CMD para ver este erro
+        flash(f"Erro ao processar baixa: {e}", "danger")
     finally:
         conn.close()
+    
     return redirect(url_for('estoque'))
+
+# --- NOVO MÓDULO: HISTÓRICO DE BAIXAS ---
+@app.route('/estoque/historico_baixas')
+@login_required
+def estoque_historico_baixas():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM EstoqueBaixas ORDER BY data_hora DESC")
+    baixas = cursor.fetchall()
+    conn.close()
+    return render_template('estoque_baixas.html', baixas=baixas)
 
 @app.route('/conversor')
 @login_required

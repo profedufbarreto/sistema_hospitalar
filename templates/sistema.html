@@ -9,7 +9,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
             gap: 25px;
-            padding: 40px 20px;
+            padding: 100px 20px 40px;
             max-width: 1200px;
             margin: 0 auto;
         }
@@ -25,6 +25,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             gap: 15px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
@@ -37,17 +38,16 @@
         .sys-icon { font-size: 2.5rem; }
         .sys-label { font-weight: 600; font-size: 1.1rem; }
         
-        /* Ajuste do Cabeçalho para o Sistema (Menu Completo) */
         .main-header nav a { font-size: 0.85rem; }
+        .theme-icon-minimal { font-family: "Segoe UI Symbol", sans-serif; }
     </style>
 </head>
 <body class="dark-mode">
     
 <header class="main-header" style="background: #181a1f; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; position: fixed; top: 0; width: 100%; z-index: 1000;">
-    
     <div class="nav-dropdown">
         <h2 onclick="toggleNavMenu()" style="cursor: pointer; margin: 0; display: flex; align-items: center; gap: 10px;" title="Clique para navegar entre módulos">
-            📊 <span id="current-module">PEP</span> <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
+            📊 <span id="current-module">SISTEMA</span> <span style="font-weight: 100; opacity: 0.6; font-size: 0.8em;">▼</span>
         </h2>
         
         <div id="nav-menu-list" class="nav-menu-content card">
@@ -58,6 +58,7 @@
             
             <div class="menu-sep">GESTÃO E CLÍNICA</div>
             <a href="{{ url_for('estoque') }}">📦 Estoque de Medicamentos</a>
+            <a href="{{ url_for('estoque_historico_baixas') }}">📉 Histórico de Baixas</a>
             <a href="{{ url_for('provas_vida_geral') }}">❤️ Histórico de Provas de Vida</a>
             <a href="{{ url_for('arquivo') }}">📁 Arquivo (Altas)</a>
             <a href="{{ url_for('conversor') }}">⚖️ Conversor de Medidas</a>
@@ -80,39 +81,42 @@
     </nav>
 </header>
 
-    <main class="sys-grid">
-        <a href="{{ url_for('prontuario') }}" class="sys-card">
-            <span class="sys-icon">📋</span>
-            <span class="sys-label">Novo Prontuário</span>
-        </a>
-        <a href="{{ url_for('pacientes') }}" class="sys-card">
-            <span class="sys-icon">👥</span>
-            <span class="sys-label">Lista de Pacientes</span>
-        </a>
-        <a href="{{ url_for('estoque') }}" class="sys-card">
-            <span class="sys-icon">📦</span>
-            <span class="sys-label">Controle de Estoque</span>
-        </a>
-        <a href="{{ url_for('conversor') }}" class="sys-card">
-            <span class="sys-icon">🔄</span>
-            <span class="sys-label">Conversor de Medidas</span>
-        </a>
-        <a href="{{ url_for('arquivo') }}" class="sys-card">
-            <span class="sys-icon">📁</span>
-            <span class="sys-label">Arquivo Geral</span>
-        </a>
-        <a href="{{ url_for('gerenciar_usuarios') }}" class="sys-card">
-            <span class="sys-icon">⚙️</span>
-            <span class="sys-label">Gerenciar Usuários</span>
-        </a>
-    </main>
+<main class="sys-grid">
+    <a href="{{ url_for('prontuario') }}" class="sys-card">
+        <span class="sys-icon">📋</span>
+        <span class="sys-label">Novo Prontuário</span>
+    </a>
+    <a href="{{ url_for('pacientes') }}" class="sys-card">
+        <span class="sys-icon">👥</span>
+        <span class="sys-label">Lista de Pacientes</span>
+    </a>
+    <a href="{{ url_for('estoque') }}" class="sys-card">
+        <span class="sys-icon">📦</span>
+        <span class="sys-label">Controle de Estoque</span>
+    </a>
 
-    <script>
-        // Mantendo o tema escuro como padrão para o Sistema
-        if (localStorage.getItem('theme') === 'light') {
-            document.body.classList.remove('dark-mode');
-        }
-    </script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <a href="{{ url_for('estoque_historico_baixas') }}" class="sys-card">
+        <span class="sys-icon">📉</span>
+        <span class="sys-label">Baixas de Estoque</span>
+    </a>
+
+    <a href="{{ url_for('conversor') }}" class="sys-card">
+        <span class="sys-icon">🔄</span>
+        <span class="sys-label">Conversor de Medidas</span>
+    </a>
+    <a href="{{ url_for('arquivo') }}" class="sys-card">
+        <span class="sys-icon">📁</span>
+        <span class="sys-label">Arquivo Geral</span>
+    </a>
+    
+    {% if session.get('nivel') in ['admin', 'tecnico'] %}
+    <a href="{{ url_for('gerenciar_usuarios') }}" class="sys-card">
+        <span class="sys-icon">⚙️</span>
+        <span class="sys-label">Gerenciar Usuários</span>
+    </a>
+    {% endif %}
+</main>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

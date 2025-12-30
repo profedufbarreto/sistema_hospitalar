@@ -21,6 +21,7 @@
             
             <div class="menu-sep">GESTÃO E CLÍNICA</div>
             <a href="{{ url_for('estoque') }}">📦 Estoque de Medicamentos</a>
+            <a href="{{ url_for('estoque_historico_baixas') }}">📉 Histórico de Baixas</a>
             <a href="{{ url_for('provas_vida_geral') }}">❤️ Histórico de Provas de Vida</a>
             <a href="{{ url_for('arquivo') }}">📁 Arquivo (Altas)</a>
             <a href="{{ url_for('conversor') }}">⚖️ Conversor de Medidas</a>
@@ -61,6 +62,14 @@
         {% endif %}
     </div>
 
+    <div class="search-box card" style="padding: 15px; margin-bottom: 20px; background: #21252b; border-left: 5px solid #61afef;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <span style="font-size: 1.2rem;">🔍</span>
+            <input type="text" id="filtro_medicamento" onkeyup="filtrarEstoque()" placeholder="Digite o nome do remédio para buscar no estoque..." 
+                   style="width: 100%; padding: 12px; background: #181a1f; border: 1px solid #3e4451; color: white; border-radius: 5px; outline: none; font-size: 1rem;">
+        </div>
+    </div>
+
     <table class="estoque-table">
         <thead>
             <tr>
@@ -76,8 +85,8 @@
         </thead>
         <tbody>
             {% for item in itens %}
-            <tr class="item-row"> 
-                <td><strong style="color: #fff; font-size: 1rem;">{{ item.nome_medicamento }}</strong></td>
+            <tr class="item-row item-medicamento"> 
+                <td class="nome-medicamento"><strong style="color: #fff; font-size: 1rem;">{{ item.nome_medicamento }}</strong></td>
                 <td style="font-weight: bold;">{{ item.quantidade }}</td>
                 <td><small style="opacity: 0.8;">{{ item.unidade }}</small></td>
                 <td>
@@ -97,7 +106,6 @@
                 <td style="text-align: center;">
                     <div style="display: flex; gap: 5px; justify-content: center;">
                         <button class="btn-editar" onclick="abrirModalEdicao('{{ item.id }}', '{{ item.nome_medicamento }}', '{{ item.quantidade }}', '{{ item.unidade }}')" style="background: transparent; border: 1px solid #61afef; color: #61afef; padding: 5px 8px; border-radius: 4px; cursor: pointer;" title="Editar">✏️</button>
-                        
                         <button onclick="abrirModalBaixa('{{ item.id }}', '{{ item.nome_medicamento }}', '{{ item.quantidade }}')" style="background: transparent; border: 1px solid #e06c75; color: #e06c75; padding: 5px 8px; border-radius: 4px; cursor: pointer;" title="Dar baixa (Vencido/Perda)">📉</button>
                     </div>
                 </td>
@@ -174,6 +182,23 @@
 </div>
 
 <script>
+    // 4. ACRÉSCIMO: FUNÇÃO DE FILTRAGEM EM TEMPO REAL
+    function filtrarEstoque() {
+        const input = document.getElementById('filtro_medicamento');
+        const filter = input.value.toLowerCase();
+        const rows = document.getElementsByClassName('item-medicamento');
+
+        for (let i = 0; i < rows.length; i++) {
+            const nomeCell = rows[i].getElementsByClassName('nome-medicamento')[0];
+            if (nomeCell) {
+                const texto = nomeCell.textContent || nomeCell.innerText;
+                // Se o texto bate com a pesquisa, exibe a linha, senão esconde
+                rows[i].style.display = texto.toLowerCase().includes(filter) ? "" : "none";
+            }
+        }
+    }
+
+    // MANUTENÇÃO DAS FUNÇÕES JÁ EXISTENTES
     function calcularEntrada() {
         const caixas = parseFloat(document.getElementById('calc_caixas').value) || 0;
         const itens = parseFloat(document.getElementById('calc_itens').value) || 0;

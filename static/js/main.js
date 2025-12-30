@@ -3,12 +3,13 @@
 document.addEventListener('DOMContentLoaded', function() {
     
     // =========================================================
-    // 1. TÍTULO DINÂMICO DO MÓDULO (NOVO)
+    // 1. TÍTULO DINÂMICO DO MÓDULO (ATUALIZADO PARA BAIXAS)
     // =========================================================
     const nomesModulos = {
         'dashboard': 'Dashboard',
         'pacientes': 'Pacientes',
         'prontuario': 'Novo Prontuário',
+        'estoque_historico_baixas': 'Baixa de Estoque', // <-- ADICIONADO AQUI
         'estoque': 'Estoque',
         'provas_vida_geral': 'Histórico ❤️',
         'arquivo': 'Arquivo/Altas',
@@ -30,10 +31,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // =========================================================
-    // 2. LÓGICA DE GRÁFICOS (APENAS PARA DASHBOARD)
+    // 2. LÓGICA DE GRÁFICOS (APENAS PARA DASHBOARD) - MANTIDA
     // =========================================================
     
-    // Verifica se os dados e elementos do gráfico existem antes de executar
     if (typeof FLASK_DASHBOARD_DATA !== 'undefined') {
         const data = FLASK_DASHBOARD_DATA; 
         
@@ -49,7 +49,6 @@ document.addEventListener('DOMContentLoaded', function() {
             'Vermelho': '#dc3545'
         };
 
-        // Renderização: Movimentação
         function renderMovimentacaoChart(timeframe) {
             const chartData = timeframe === 'anual' ? data.movimentacao_anual : data.movimentacao_mensal;
             const title = timeframe === 'anual' ? 'Movimentação Anual' : 'Movimentação Mensal';
@@ -71,7 +70,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Renderização: Distribuição Atual (Rosca)
         function renderPrioridadeChart() {
             const ctx = document.getElementById('prioridadeChart');
             const chartData = data.prioridade_data;
@@ -91,7 +89,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Renderização: Tendência Mensal
         function renderPrioridadeTrendChart() {
             const ctx = document.getElementById('tendenciaPrioridadeChart');
             const rawData = data.prioridade_tendencia;
@@ -121,7 +118,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Renderização: Dias Médios
         function renderDiasChart() {
             const ctxDias = document.getElementById('diasChart');
             if (!ctxDias || data.dias_data.labels.length === 0) return;
@@ -141,13 +137,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Inicializa Gráficos
         renderPrioridadeChart();
         renderPrioridadeTrendChart();
         renderMovimentacaoChart('mensal');
         renderDiasChart();
 
-        // Filtros de Movimentação
         const filterButtons = document.querySelectorAll('.btn-filter');
         filterButtons.forEach(button => {
             button.addEventListener('click', function() {
@@ -159,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // =========================================================
-    // 3. LÓGICA DE TEMA (SOL/LUA)
+    // 3. LÓGICA DE TEMA (SOL/LUA) - MANTIDA
     // =========================================================
     const themeToggle = document.getElementById('theme-toggle');
     const themeIcon = document.getElementById('theme-icon');
@@ -193,16 +187,26 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // =========================================================
-// 4. FUNÇÕES GLOBAIS (MENU DROPDOWN)
+// 4. FUNÇÕES GLOBAIS (MENU DROPDOWN) - AJUSTADA
 // =========================================================
 function toggleNavMenu() {
     const menu = document.getElementById("nav-menu-list");
-    if (menu) menu.classList.toggle("show-menu");
+    if (menu) {
+        // Verifica se o menu está visível para alternar corretamente
+        if (menu.style.display === "block") {
+            menu.style.display = "none";
+        } else {
+            menu.style.display = "block";
+        }
+    }
 }
 
+// Fecha o menu ao clicar fora dele
 window.addEventListener('click', function(event) {
-    if (!event.target.closest('.nav-dropdown')) {
-        const menu = document.getElementById("nav-menu-list");
-        if (menu) menu.classList.remove("show-menu");
+    const menu = document.getElementById("nav-menu-list");
+    const dropdownTrigger = document.querySelector('.nav-dropdown h2');
+    
+    if (menu && dropdownTrigger && !dropdownTrigger.contains(event.target) && !menu.contains(event.target)) {
+        menu.style.display = "none";
     }
 });

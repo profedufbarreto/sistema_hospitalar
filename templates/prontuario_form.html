@@ -34,6 +34,7 @@
             
             <div class="menu-sep">GESTÃO E CLÍNICA</div>
             <a href="{{ url_for('estoque') }}">📦 Estoque de Medicamentos</a>
+            <a href="{{ url_for('estoque_historico_baixas') }}">📉 Histórico de Baixas</a>
             <a href="{{ url_for('provas_vida_geral') }}">❤️ Histórico de Provas de Vida</a>
             <a href="{{ url_for('arquivo') }}">📁 Arquivo (Altas)</a>
             <a href="{{ url_for('conversor') }}">⚖️ Conversor de Medidas</a>
@@ -147,36 +148,26 @@
         </div>
     </main>
 
-    <template id="medication-template">
-        <div class="medication-item">
-            <div class="form-row">
-                <div class="form-group" style="flex: 3;">
-                    <label>Medicamento:</label>
-                    <select name="medicamento_entrada[]" class="medicamento-select">
-                        <option value="">Selecione o medicamento disponível...</option>
-                        {% for med in medicamentos %}
-                            <option value="{{ med.nome_medicamento }}">{{ med.nome_medicamento }}</option>
-                        {% endfor %}
-                        <option value="outro">Outro (Especificar manualmente)</option>
-                    </select>
-                </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>Dose:</label>
-                    <input type="number" step="0.01" name="dose[]" placeholder="Qtd">
-                </div>
-                <div class="form-group checkbox-sn" style="flex: 1; align-self: flex-end; display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" class="sn-checkbox" onchange="updateSNValue(this)">
-                    <label>S/N</label>
-                    <input type="hidden" name="se_necessario[]" value="0" class="sn-hidden-input">
-                </div>
+<template id="medication-template">
+    <div class="medication-item">
+        <div class="form-row">
+            <div class="form-group" style="flex: 3;">
+                <label>Medicamento:</label>
+                <select name="medicamento_entrada[]" class="medicamento-select" required>
+                    <option value="">Selecione o medicamento disponível...</option>
+                    {% for med in medicamentos %}
+                        <option value="{{ med.nome_medicamento }}">{{ med.nome_medicamento }} (Saldo: {{ med.quantidade }})</option>
+                    {% endfor %}
+                    <option value="outro">Outro (Especificar manualmente)</option>
+                </select>
             </div>
-            <div class="outro-medicamento-group" style="display: none; margin-top: 10px;">
-                <label>Nome do Medicamento:</label>
-                <input type="text" name="outro_medicamento_nome[]" placeholder="Digite o nome completo do remédio">
+            <div class="form-group" style="flex: 1;">
+                <label>Dose (Qtd):</label>
+                <input type="number" step="0.01" name="dose[]" placeholder="Qtd" required min="0.01">
             </div>
-            <button type="button" class="remove-med-button" onclick="removeMedicationItem(this)">Remover (-)</button>
+            </div>
         </div>
-    </template>
+</template>
 
     <script src="{{ url_for('static', filename='js/prontuario.js') }}"></script>
     <script src="{{ url_for('static', filename='js/cep_autofill.js') }}"></script>
