@@ -278,10 +278,20 @@ def pacientes():
 def detalhes_prontuario(paciente_id):
     conn = get_db_connection()
     cursor = conn.cursor()
+    
     cursor.execute("SELECT * FROM Pacientes WHERE id = %s", (paciente_id,))
     paciente = cursor.fetchone()
-    cursor.execute("SELECT * FROM ProvasDeVida WHERE paciente_id = %s ORDER BY data_hora DESC", (paciente_id,))
+
+    # Query ajustada para os nomes reais das suas colunas
+    cursor.execute("""
+        SELECT data_hora, pressao_arterial, saturacao, batimentos_cardiacos, 
+               glicose, temperatura, evolucao, quem_efetuou 
+        FROM provasdevida 
+        WHERE paciente_id = %s 
+        ORDER BY data_hora DESC
+    """, (paciente_id,))
     provas_vida = cursor.fetchall()
+
     conn.close()
     return render_template('detalhes_prontuario.html', paciente=paciente, provas_vida=provas_vida)
 
@@ -393,27 +403,112 @@ def excluir_paciente(id):
 def prova_vida(paciente_id):
     conn = get_db_connection()
     cursor = conn.cursor()
+
     if request.method == 'POST':
         dados = request.form
-        evolucao = dados.get('evolucao', '')
         try:
-            cursor.execute("SHOW COLUMNS FROM ProvasDeVida LIKE 'evolucao'")
-            if not cursor.fetchone():
-                cursor.execute("ALTER TABLE ProvasDeVida ADD COLUMN evolucao TEXT")
-                conn.commit()
-        except: pass
-        cursor.execute("""
-            INSERT INTO ProvasDeVida 
-            (paciente_id, data_hora, pressao_arterial, glicose, saturacao, batimentos_cardiacos, evolucao, quem_efetuou) 
-            VALUES (%s, NOW(), %s, %s, %s, %s, %s, %s)
-        """, (paciente_id, dados['pa'], dados['glicose'], dados['sat'], dados['bpm'], evolucao, session['usuario']))
-        conn.commit()
-        conn.close()
-        return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id))
-    cursor.execute("SELECT id, nome FROM Pacientes WHERE id = %s", (paciente_id,))
+            # SQL usando os nomes exatos da sua imagem do MySQL
+            sql_pv = """INSERT INTO provasdevida 
+                        (paciente_id, data_hora, pressao_arterial, glicose, saturacao, 
+                         batimentos_cardiacos, quem_efetuou, observacoes, evolucao, temperatura) 
+                        VALUES (%s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s)"""
+            
+            # Mapeando os campos do seu HTML para as colunas do banco
+            valores = (
+                paciente_id, 
+                dados.get('pa'),           # vai para pressao_arterial
+                dados.get('glicose'), 
+                dados.get('sat'),          # vai para saturacao
+                dados.get('bpm'),          # vai para batimentos_cardiacos
+                session.get('usuario'),    # vai para quem_efetuou
+                "",                        # observacoes (vazio por enquanto)
+                dados.get('evolucao'),     # vai para evolucao
+                dados.get('temperatura')
+            )
+            
+            cursor.execute(sql_pv, valores)
+
+            # Lógica de baixa de medicamento (Estoque)
+            nome_remedio = dados.get('medicamento_adm')
+            qtd_adm = dados.get('quantidade_adm')
+            if nome_remedio and qtd_adm and float(qtd_adm) > 0:
+                cursor.execute("UPDATE Estoque SET quantidade = quantidade - %s WHERE nome_medicamento = %s", (float(qtd_adm), nome_remedio))
+                # Aqui você pode adicionar o INSERT na tabela EstoqueBaixas se desejar
+
+            conn.commit()
+            flash("Prova de vida registrada com sucesso!", "success")
+            return redirect(url_for('detalhes_prontuario', paciente_id=paciente_id))
+
+        except Exception as e:
+            if conn: conn.rollback()
+            print(f"Erro ao salvar: {e}")
+            flash(f"Erro ao salvar no banco de dados: {e}", "danger")
+            return redirect(url_for('prova_vida', paciente_id=paciente_id))
+        finally:
+            conn.close()
+
+    # GET: Carrega o formulário
+    cursor.execute("SELECT * FROM Pacientes WHERE id = %s", (paciente_id,))
     paciente = cursor.fetchone()
+    cursor.execute("SELECT nome_medicamento, quantidade FROM Estoque WHERE quantidade > 0")
+    medicamentos = cursor.fetchall()
     conn.close()
-    return render_template('prova_vida_form.html', paciente=paciente)
+    return render_template('prova_vida_form.html', paciente=paciente, medicamentos_estoque=medicamentos)
+
+@app.route('/prova_vida/salvar/<int:paciente_id>', methods=['POST'])
+@login_required
+def salvar_prova_vida(paciente_id):
+    dados = request.form
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 1. SALVAR OS SINAIS VITAIS
+        sql_prova = """INSERT INTO ProvasVida (paciente_id, pa, saturacao, frequencia_cardiaca, 
+                       temperatura, observacoes, usuario_registro, data_registro) 
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())"""
+        
+        cursor.execute(sql_prova, (paciente_id, dados.get('pa'), dados.get('saturacao'), 
+                                  dados.get('fc'), dados.get('temperatura'), 
+                                  dados.get('observacoes'), session['usuario']))
+
+        # 2. BAIXA DE MEDICAMENTO NA PROVA DE VIDA
+        nome_remedio = dados.get('medicamento_adm')
+        qtd_adm = dados.get('quantidade_adm')
+
+        if nome_remedio and qtd_adm and float(qtd_adm) > 0:
+            qtd_num = float(qtd_adm)
+            
+            # Busca o remédio no estoque
+            cursor.execute("SELECT id, quantidade, unidade FROM Estoque WHERE nome_medicamento = %s", (nome_remedio,))
+            item = cursor.fetchone()
+
+            if item:
+                if item['quantidade'] >= qtd_num:
+                    # Atualiza estoque
+                    nova_qtd = item['quantidade'] - qtd_num
+                    cursor.execute("UPDATE Estoque SET quantidade = %s WHERE id = %s", (nova_qtd, item['id']))
+                    
+                    # Registra no histórico de baixas
+                    cursor.execute("SELECT nome FROM Pacientes WHERE id = %s", (paciente_id,))
+                    paciente = cursor.fetchone()
+                    
+                    sql_baixa = """INSERT INTO EstoqueBaixas (nome_medicamento, quantidade_removida, unidade, motivo, usuario_baixa) 
+                                   VALUES (%s, %s, %s, %s, %s)"""
+                    cursor.execute(sql_baixa, (nome_remedio, qtd_num, item['unidade'], 
+                                              f"Adm. em Prova de Vida: {paciente['nome']}", session['usuario']))
+                else:
+                    flash(f"Aviso: Estoque insuficiente de {nome_remedio} para administração.", "warning")
+
+        conn.commit()
+        flash("Prova de vida registrada e estoque atualizado!", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Erro ao registrar: {e}", "danger")
+    finally:
+        conn.close()
+    
+    return redirect(url_for('detalhes_paciente', id=paciente_id))
 
 @app.route('/paciente/alta_form/<int:paciente_id>')
 @login_required

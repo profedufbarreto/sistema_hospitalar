@@ -8,6 +8,15 @@
         .theme-icon-minimal { font-family: "Segoe UI Symbol", sans-serif; font-weight: 100; user-select: none; }
         .nav-link { text-decoration: none; color: inherit; transition: opacity 0.2s; }
         textarea { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); resize: vertical; }
+        
+        /* Estilo para a seção de medicamentos */
+        .medication-box {
+            background: rgba(97, 175, 239, 0.05);
+            border: 1px dashed #61afef;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body class="dark-mode">
@@ -50,12 +59,13 @@
     </nav>
 </header>
 
-    <main class="content-wrapper" style="padding: 20px;">
+    <main class="content-wrapper" style="padding: 20px; margin-top: 80px;">
         <div class="pv-container" style="max-width: 700px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px var(--shadow-color);">
             <h3>Registro de Sinais Vitais: <span style="color: #61afef;">{{ paciente.nome }}</span></h3>
             <hr style="opacity: 0.1; margin: 20px 0;">
 
             <form action="{{ url_for('prova_vida', paciente_id=paciente.id) }}" method="POST">
+                
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div class="form-group">
                         <label>Pressão Arterial (PA):</label>
@@ -73,11 +83,36 @@
                         <label>Frequência Cardíaca (BPM):</label>
                         <input type="number" name="bpm" placeholder="Ex: 75" required>
                     </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Temperatura Corporal (°C):</label>
+                        <input type="number" step="0.1" name="temperatura" placeholder="Ex: 36.5" required>
+                    </div>
+                </div>
+
+                <div class="medication-box">
+                    <h4 style="margin-top: 0; color: #61afef;">💊 Administração de Medicamento</h4>
+                    <p style="font-size: 0.85em; opacity: 0.7; margin-bottom: 15px;">Selecione o item para dar baixa automática no estoque.</p>
+                    
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label>Medicamento:</label>
+                            <select name="medicamento_adm" style="width: 100%; padding: 10px; background: var(--bg-primary); color: var(--text-primary); border-radius: 6px; border: 1px solid var(--border-color);">
+                                <option value="">Nenhum administrado</option>
+                                {% for med in medicamentos_estoque %}
+                                    <option value="{{ med.nome_medicamento }}">{{ med.nome_medicamento }} (Saldo: {{ med.quantidade }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Quantidade:</label>
+                            <input type="number" step="0.01" name="quantidade_adm" placeholder="Qtd" min="0">
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group" style="margin-top: 20px;">
-                    <label>Evolução (Opcional):</label>
-                    <textarea name="evolucao" rows="5" placeholder="Relate aqui a evolução clínica, melhorias, queixas ou intercorrências do paciente..."></textarea>
+                    <label>Evolução / Observações:</label>
+                    <textarea name="evolucao" rows="4" placeholder="Relate aqui a evolução clínica, melhorias, queixas ou intercorrências..."></textarea>
                 </div>
 
                 <div style="margin-top: 30px;">
